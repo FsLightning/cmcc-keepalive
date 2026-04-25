@@ -10,6 +10,8 @@ The first implementation focuses on technical validation only. It should answer 
 
 The MVP must not perform recovery, notifications, OCR, or any input automation.
 
+The currently confirmed target process is `Ecloud Cloud Computer Application.exe`.
+
 ## Runtime flow
 
 Each polling cycle follows the same order:
@@ -61,7 +63,7 @@ The chosen window is logged together with the full candidate list.
 The `Guard` section in `appsettings.json` controls the MVP:
 
 - `PollIntervalSeconds`
-- `TargetProcessName`
+- `TargetProcessName`: currently set to `Ecloud Cloud Computer Application.exe`
 - `TargetExecutablePath`
 - `DesktopTitleKeywords`
 - `DesktopClassKeywords`

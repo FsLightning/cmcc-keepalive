@@ -35,6 +35,8 @@ dotnet run --project .\src\GuardService\GuardService.csproj
 
 Edit `src/GuardService/appsettings.json` and set the target process name, optional executable path, and window keyword rules.
 
+The current confirmed target process for this repository is `Ecloud Cloud Computer Application.exe`.
+
 ## Collaboration notes
 
 - Early-stage changes can be committed directly to `main`.
