@@ -11,7 +11,7 @@ using Windows.Storage.Streams;
 
 if (!OperatingSystem.IsWindows())
 {
-    Console.Error.WriteLine("OcrProbe only runs on Windows.");
+    Console.Error.WriteLine("OcrProbe 仅支持在 Windows 上运行。");
     return 1;
 }
 
@@ -21,20 +21,26 @@ Directory.CreateDirectory(Path.GetDirectoryName(report.OutputMarkdownPath)!);
 Directory.CreateDirectory(Path.GetDirectoryName(report.OutputJsonPath)!);
 Directory.CreateDirectory(Path.GetDirectoryName(report.CaptureImagePath)!);
 await File.WriteAllTextAsync(report.OutputMarkdownPath, report.Markdown, new UTF8Encoding(false));
-await File.WriteAllTextAsync(report.OutputJsonPath, JsonSerializer.Serialize(report.JsonSummary, new JsonSerializerOptions(JsonSerializerDefaults.Web)
-{
-    WriteIndented = true,
-}), new UTF8Encoding(false));
+await File.WriteAllTextAsync(
+    report.OutputJsonPath,
+    JsonSerializer.Serialize(
+        report.JsonSummary,
+        new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            WriteIndented = true,
+        }),
+    new UTF8Encoding(false));
 report.CapturedBitmap.Save(report.CaptureImagePath, ImageFormat.Png);
-Console.WriteLine($"OCR report written to {report.OutputMarkdownPath}");
-Console.WriteLine($"OCR JSON written to {report.OutputJsonPath}");
-Console.WriteLine($"Capture image written to {report.CaptureImagePath}");
-Console.WriteLine($"Selected process: PID={report.SelectedProcess.ProcessId}, MainWindowTitle={report.SelectedProcess.MainWindowTitle}");
-Console.WriteLine($"OCR text: {report.RecognizedText.Replace(Environment.NewLine, " ")}");
-Console.WriteLine($"Matched keywords: {(report.MatchedKeywords.Count == 0 ? "<none>" : string.Join(", ", report.MatchedKeywords))}");
-Console.WriteLine($"Any keyword matched: {report.AnyKeywordMatched}");
-Console.WriteLine($"All keywords matched: {report.AllKeywordsMatched}");
-Console.WriteLine($"Detected state: {report.DetectedState ?? "<none>"}");
+
+Console.WriteLine($"OCR Markdown 报告已写入: {report.OutputMarkdownPath}");
+Console.WriteLine($"OCR JSON 结果已写入: {report.OutputJsonPath}");
+Console.WriteLine($"截图文件已写入: {report.CaptureImagePath}");
+Console.WriteLine($"选中进程: PID={report.Process.ProcessId}, MainWindowTitle={report.Process.MainWindowTitle}");
+Console.WriteLine($"OCR 文本: {report.JsonSummary.Text.Original.Replace(Environment.NewLine, " ")}");
+Console.WriteLine($"匹配关键词: {(report.JsonSummary.CustomKeywordDetection.MatchedKeywords.Count == 0 ? "<none>" : string.Join(", ", report.JsonSummary.CustomKeywordDetection.MatchedKeywords))}");
+Console.WriteLine($"任意关键词命中: {report.JsonSummary.CustomKeywordDetection.AnyMatched}");
+Console.WriteLine($"全部关键词命中: {report.JsonSummary.CustomKeywordDetection.AllMatched}");
+Console.WriteLine($"识别状态: {report.JsonSummary.StateDetection.DetectedState ?? "<none>"}");
 return 0;
 
 internal sealed record OcrProbeOptions(
@@ -69,23 +75,18 @@ internal sealed record OcrProbeOptions(
         var processPath = values.TryGetValue("--process-path", out var configuredPath)
             ? configuredPath
             : @"C:\Program Files (x86)\Ecloud\CloudComputer\Ecloud Cloud Computer Application.exe";
-
         var processName = values.TryGetValue("--process-name", out var configuredName)
             ? configuredName
             : Path.GetFileNameWithoutExtension(processPath);
-
         var outputMarkdownPath = values.TryGetValue("--output", out var configuredOutput)
             ? configuredOutput
             : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "samples", "ocr", "ecloud-ocr-probe.md");
-
-        var captureImagePath = values.TryGetValue("--image-output", out var configuredImageOutput)
-            ? configuredImageOutput
-            : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "samples", "ocr", "ecloud-ocr-probe.png");
-
         var outputJsonPath = values.TryGetValue("--json-output", out var configuredJsonOutput)
             ? configuredJsonOutput
             : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "samples", "ocr", "ecloud-ocr-probe.json");
-
+        var captureImagePath = values.TryGetValue("--image-output", out var configuredImageOutput)
+            ? configuredImageOutput
+            : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "samples", "ocr", "ecloud-ocr-probe.png");
         var languageTag = values.TryGetValue("--language", out var configuredLanguage)
             ? configuredLanguage
             : "zh-CN";
@@ -93,15 +94,6 @@ internal sealed record OcrProbeOptions(
             Enum.TryParse<CaptureMode>(configuredCaptureMode, true, out var parsedCaptureMode)
             ? parsedCaptureMode
             : CaptureMode.Window;
-
-        var relativeX = ParseInt(values, "--relative-x", 120);
-        var relativeY = ParseInt(values, "--relative-y", 220);
-        var regionWidth = ParseInt(values, "--width", 760);
-        var regionHeight = ParseInt(values, "--height", 520);
-        var keywords = values.TryGetValue("--keywords", out var configuredKeywords)
-            ? configuredKeywords.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            : Array.Empty<string>();
-        var stateRules = CreateDefaultStateRules();
 
         return new OcrProbeOptions(
             Path.GetFullPath(processPath),
@@ -111,12 +103,19 @@ internal sealed record OcrProbeOptions(
             Path.GetFullPath(captureImagePath),
             captureMode,
             languageTag,
-            relativeX,
-            relativeY,
-            regionWidth,
-            regionHeight,
-            keywords,
-            stateRules);
+            ParseInt(values, "--relative-x", 120),
+            ParseInt(values, "--relative-y", 220),
+            ParseInt(values, "--width", 1200),
+            ParseInt(values, "--height", 700),
+            ParseKeywords(values),
+            CreateDefaultStateRules());
+    }
+
+    private static IReadOnlyList<string> ParseKeywords(IReadOnlyDictionary<string, string> values)
+    {
+        return values.TryGetValue("--keywords", out var configuredKeywords)
+            ? configuredKeywords.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : [];
     }
 
     private static IReadOnlyList<StateRule> CreateDefaultStateRules()
@@ -141,7 +140,7 @@ internal static class OcrReportBuilder
 {
     public static async Task<OcrReport> BuildAsync(OcrProbeOptions options)
     {
-        var processes = Process.GetProcessesByName(options.ProcessName)
+        var processCandidates = Process.GetProcessesByName(options.ProcessName)
             .Select(ProcessSnapshot.Create)
             .Where(snapshot => snapshot.ExecutablePath is not null)
             .Where(snapshot => string.Equals(snapshot.ExecutablePath, options.ProcessPath, StringComparison.OrdinalIgnoreCase))
@@ -150,135 +149,182 @@ internal static class OcrReportBuilder
             .ThenByDescending(snapshot => snapshot.StartTime ?? DateTimeOffset.MinValue)
             .ToList();
 
-        if (processes.Count == 0)
+        if (processCandidates.Count == 0)
         {
-            throw new InvalidOperationException($"No running process matched '{options.ProcessPath}'.");
+            throw new InvalidOperationException($"未找到匹配进程: {options.ProcessPath}");
         }
 
-        var selectedProcess = processes[0];
-        if (selectedProcess.MainWindowHandle == 0)
+        var selectedProcess = processCandidates[0];
+        var captureCandidates = CaptureWindowSelector.GetOrderedCandidates(selectedProcess, options);
+        if (captureCandidates.Count == 0)
         {
-            throw new InvalidOperationException("The selected process does not have a main window handle.");
+            throw new InvalidOperationException("未找到可用于 OCR 的窗口候选。请先确认客户端窗口已经创建。");
         }
 
-        var window = Win32Capture.GetWindowInfo(selectedProcess.MainWindowHandle);
-        if (!window.IsVisible)
+        OcrCaptureAttempt? bestAttempt = null;
+        var attemptSummaries = new List<CaptureAttemptSummary>();
+
+        foreach (var candidate in captureCandidates)
         {
-            throw new InvalidOperationException("The selected main window is not visible. OCR probe requires a visible window.");
-        }
-
-        if (window.IsMinimized && options.CaptureMode == CaptureMode.Screen)
-        {
-            throw new InvalidOperationException("The selected main window is minimized. Restore it before running the OCR probe in screen capture mode.");
-        }
-
-        var captureRegion = Win32Capture.ResolveCaptureRegion(window.ClientBounds, options.RelativeX, options.RelativeY, options.RegionWidth, options.RegionHeight);
-        using var bitmap = Win32Capture.CaptureRegion(window, captureRegion, options.CaptureMode);
-        var recognized = await RecognizeAsync(bitmap, options.LanguageTag);
-        var normalizedRecognizedText = NormalizeForKeywordMatch(recognized.Text);
-        var matchedKeywords = options.Keywords
-            .Where(keyword => normalizedRecognizedText.Contains(NormalizeForKeywordMatch(keyword), StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var anyKeywordMatched = matchedKeywords.Count > 0;
-        var allKeywordsMatched = options.Keywords.Count == 0 || matchedKeywords.Count == options.Keywords.Distinct(StringComparer.OrdinalIgnoreCase).Count();
-        var detectedState = DetectState(options.StateRules, normalizedRecognizedText);
-
-        var markdown = BuildMarkdown(options, selectedProcess, window, captureRegion, recognized, matchedKeywords, normalizedRecognizedText, anyKeywordMatched, allKeywordsMatched, detectedState);
-        var jsonSummary = new OcrJsonSummary(
-            DateTimeOffset.Now,
-            options.ProcessPath,
-            selectedProcess.ProcessId,
-            selectedProcess.MainWindowTitle,
-            ToHandleHex(selectedProcess.MainWindowHandle),
-            options.LanguageTag,
-            new OcrWindowSummary(window.ClassName, window.IsVisible, window.IsMinimized, window.WindowBounds, window.ClientBounds),
-            new OcrCaptureSummary(options.CaptureMode, options.RelativeX, options.RelativeY, options.RegionWidth, options.RegionHeight, captureRegion.AbsoluteBounds),
-            recognized.Text,
-            normalizedRecognizedText,
-            matchedKeywords,
-            anyKeywordMatched,
-            allKeywordsMatched,
-            detectedState,
-            options.StateRules,
-            recognized.Lines);
-
-        return new OcrReport(options.OutputMarkdownPath, options.OutputJsonPath, options.CaptureImagePath, selectedProcess, bitmap.Clone(new Rectangle(0, 0, bitmap.Width, bitmap.Height), bitmap.PixelFormat), markdown, recognized.Text, matchedKeywords, anyKeywordMatched, allKeywordsMatched, detectedState, jsonSummary);
-    }
-
-    private static string? DetectState(IReadOnlyList<StateRule> stateRules, string normalizedRecognizedText)
-    {
-        foreach (var stateRule in stateRules)
-        {
-            var allTermsPresent = stateRule.RequiredTerms
-                .Select(NormalizeForKeywordMatch)
-                .All(term => normalizedRecognizedText.Contains(term, StringComparison.OrdinalIgnoreCase));
-
-            if (allTermsPresent)
+            if (!Win32Capture.TryResolveCaptureRegion(candidate.ClientBounds, options.RelativeX, options.RelativeY, options.RegionWidth, options.RegionHeight, out var captureRegion))
             {
-                return stateRule.Name;
-            }
-        }
-
-        return null;
-    }
-
-    private static string NormalizeForKeywordMatch(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
-
-        var builder = new StringBuilder(value.Length);
-        foreach (var character in value)
-        {
-            if (char.IsWhiteSpace(character))
-            {
+                attemptSummaries.Add(new CaptureAttemptSummary(
+                    candidate.HandleHex,
+                    candidate.SourceKind,
+                    candidate.Title,
+                    candidate.ClassName,
+                    candidate.IsVisible,
+                    candidate.IsMinimized,
+                    false,
+                    false,
+                    0,
+                    null,
+                    "候选窗口尺寸不足，无法容纳默认状态区域。"));
                 continue;
             }
 
-            builder.Append(character);
+            using var bitmap = Win32Capture.TryCaptureRegion(candidate, captureRegion, options.CaptureMode);
+            if (bitmap is null)
+            {
+                attemptSummaries.Add(new CaptureAttemptSummary(
+                    candidate.HandleHex,
+                    candidate.SourceKind,
+                    candidate.Title,
+                    candidate.ClassName,
+                    candidate.IsVisible,
+                    candidate.IsMinimized,
+                    true,
+                    false,
+                    0,
+                    null,
+                    "窗口抓图失败。"));
+                continue;
+            }
+
+            var recognizedText = await RecognizeAsync(bitmap, options.LanguageTag);
+            var customKeywordDetection = EvaluateCustomKeywords(options.Keywords, recognizedText.Normalized);
+            var stateDetection = EvaluateStates(options.StateRules, recognizedText.Normalized);
+            var attempt = new OcrCaptureAttempt(
+                candidate,
+                captureRegion,
+                (Bitmap)bitmap.Clone(),
+                recognizedText,
+                customKeywordDetection,
+                stateDetection);
+
+            attemptSummaries.Add(new CaptureAttemptSummary(
+                candidate.HandleHex,
+                candidate.SourceKind,
+                candidate.Title,
+                candidate.ClassName,
+                candidate.IsVisible,
+                candidate.IsMinimized,
+                true,
+                true,
+                recognizedText.Normalized.Length,
+                stateDetection.DetectedState,
+                "抓图与 OCR 成功。"));
+
+            if (bestAttempt is null || attempt.Score > bestAttempt.Score)
+            {
+                bestAttempt?.CapturedBitmap.Dispose();
+                bestAttempt = attempt;
+            }
+            else
+            {
+                attempt.CapturedBitmap.Dispose();
+            }
         }
 
-        return builder.ToString();
+        if (bestAttempt is null)
+        {
+            throw new InvalidOperationException("所有窗口候选的 OCR 抓图都失败了。请检查窗口是否已创建，或尝试切换 capture mode。");
+        }
+
+        var jsonSummary = BuildJsonSummary(options, selectedProcess, bestAttempt, attemptSummaries);
+        var markdown = BuildMarkdownReport(options, jsonSummary);
+        return new OcrReport(
+            options.OutputMarkdownPath,
+            options.OutputJsonPath,
+            options.CaptureImagePath,
+            bestAttempt.CapturedBitmap,
+            markdown,
+            jsonSummary);
     }
 
-    private static async Task<OcrRecognitionSnapshot> RecognizeAsync(Bitmap bitmap, string languageTag)
+    private static CustomKeywordDetectionSummary EvaluateCustomKeywords(IReadOnlyList<string> keywords, string normalizedRecognizedText)
+    {
+        var configuredKeywords = keywords
+            .Where(keyword => !string.IsNullOrWhiteSpace(keyword))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var matchedKeywords = configuredKeywords
+            .Where(keyword => normalizedRecognizedText.Contains(NormalizeForMatch(keyword), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return new CustomKeywordDetectionSummary(
+            configuredKeywords,
+            matchedKeywords,
+            matchedKeywords.Count > 0,
+            configuredKeywords.Count > 0 && matchedKeywords.Count == configuredKeywords.Count);
+    }
+
+    private static StateDetectionSummary EvaluateStates(IReadOnlyList<StateRule> stateRules, string normalizedRecognizedText)
+    {
+        var evaluations = new List<StateRuleEvaluation>(stateRules.Count);
+        string? detectedState = null;
+
+        foreach (var stateRule in stateRules)
+        {
+            var matchedTerms = new List<string>(stateRule.RequiredTerms.Count);
+            var missingTerms = new List<string>(stateRule.RequiredTerms.Count);
+
+            foreach (var requiredTerm in stateRule.RequiredTerms)
+            {
+                if (normalizedRecognizedText.Contains(NormalizeForMatch(requiredTerm), StringComparison.OrdinalIgnoreCase))
+                {
+                    matchedTerms.Add(requiredTerm);
+                }
+                else
+                {
+                    missingTerms.Add(requiredTerm);
+                }
+            }
+
+            var isMatched = missingTerms.Count == 0;
+            if (detectedState is null && isMatched)
+            {
+                detectedState = stateRule.Name;
+            }
+
+            evaluations.Add(new StateRuleEvaluation(
+                stateRule.Name,
+                stateRule.RequiredTerms,
+                matchedTerms,
+                missingTerms,
+                isMatched));
+        }
+
+        return new StateDetectionSummary(detectedState, detectedState is not null, evaluations);
+    }
+
+    private static async Task<OcrTextSummary> RecognizeAsync(Bitmap bitmap, string languageTag)
     {
         var engine = TryCreateEngine(languageTag);
         if (engine is null)
         {
             var availableLanguages = string.Join(", ", OcrEngine.AvailableRecognizerLanguages.Select(language => language.LanguageTag));
-            throw new InvalidOperationException($"No OCR engine was available for '{languageTag}'. Available recognizer languages: {availableLanguages}");
+            throw new InvalidOperationException($"无法创建 OCR 引擎。可用语言: {availableLanguages}");
         }
 
         var softwareBitmap = await ConvertToSoftwareBitmapAsync(bitmap);
         var result = await engine.RecognizeAsync(softwareBitmap);
+        var lines = result.Lines.Select(line => new OcrLineSnapshot(line.Text, CreateLineBounds(line))).ToList();
 
-        var lines = result.Lines.Select(line => new OcrLineSnapshot(
-            line.Text,
-            CreateLineBounds(line))).ToList();
-
-        return new OcrRecognitionSnapshot(result.Text, lines);
-    }
-
-    private static OcrRectangleSnapshot CreateLineBounds(OcrLine line)
-    {
-        if (line.Words.Count == 0)
-        {
-            return new OcrRectangleSnapshot(0, 0, 0, 0);
-        }
-
-        var left = line.Words.Min(word => word.BoundingRect.X);
-        var top = line.Words.Min(word => word.BoundingRect.Y);
-        var right = line.Words.Max(word => word.BoundingRect.X + word.BoundingRect.Width);
-        var bottom = line.Words.Max(word => word.BoundingRect.Y + word.BoundingRect.Height);
-        return new OcrRectangleSnapshot(
-            Convert.ToUInt32(Math.Max(left, 0)),
-            Convert.ToUInt32(Math.Max(top, 0)),
-            Convert.ToUInt32(Math.Max(right - left, 0)),
-            Convert.ToUInt32(Math.Max(bottom - top, 0)));
+        return new OcrTextSummary(
+            result.Text,
+            NormalizeForMatch(result.Text),
+            lines);
     }
 
     private static OcrEngine? TryCreateEngine(string languageTag)
@@ -316,93 +362,171 @@ internal static class OcrReportBuilder
         return await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
     }
 
-    private static string BuildMarkdown(
+    private static OcrRectangleSnapshot CreateLineBounds(OcrLine line)
+    {
+        if (line.Words.Count == 0)
+        {
+            return new OcrRectangleSnapshot(0, 0, 0, 0);
+        }
+
+        var left = line.Words.Min(word => word.BoundingRect.X);
+        var top = line.Words.Min(word => word.BoundingRect.Y);
+        var right = line.Words.Max(word => word.BoundingRect.X + word.BoundingRect.Width);
+        var bottom = line.Words.Max(word => word.BoundingRect.Y + word.BoundingRect.Height);
+        return new OcrRectangleSnapshot(
+            Convert.ToUInt32(Math.Max(left, 0)),
+            Convert.ToUInt32(Math.Max(top, 0)),
+            Convert.ToUInt32(Math.Max(right - left, 0)),
+            Convert.ToUInt32(Math.Max(bottom - top, 0)));
+    }
+
+    private static string NormalizeForMatch(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            if (!char.IsWhiteSpace(character))
+            {
+                builder.Append(character);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static OcrJsonSummary BuildJsonSummary(
         OcrProbeOptions options,
         ProcessSnapshot selectedProcess,
-        WindowInfo window,
-        CaptureRegion captureRegion,
-        OcrRecognitionSnapshot recognition,
-        IReadOnlyList<string> matchedKeywords,
-        string normalizedRecognizedText,
-        bool anyKeywordMatched,
-        bool allKeywordsMatched,
-        string? detectedState)
+        OcrCaptureAttempt bestAttempt,
+        IReadOnlyList<CaptureAttemptSummary> attemptSummaries)
+    {
+        return new OcrJsonSummary(
+            "1.0",
+            DateTimeOffset.Now,
+            options.ProcessPath,
+            new ProcessSummary(
+                selectedProcess.ProcessId,
+                selectedProcess.ProcessName,
+                selectedProcess.ExecutablePath,
+                selectedProcess.MainWindowTitle,
+                ToHandleHex(selectedProcess.MainWindowHandle)),
+            new CaptureWindowSummary(
+                bestAttempt.Candidate.HandleHex,
+                bestAttempt.Candidate.Title,
+                bestAttempt.Candidate.ClassName,
+                bestAttempt.Candidate.SourceKind,
+                bestAttempt.Candidate.SelectionReason,
+                bestAttempt.Candidate.IsVisible,
+                bestAttempt.Candidate.IsMinimized,
+                bestAttempt.Candidate.IsEnabled,
+                bestAttempt.Candidate.WindowBounds,
+                bestAttempt.Candidate.ClientBounds,
+                bestAttempt.Candidate.SelectionScore),
+            new CaptureRegionSummary(
+                options.CaptureMode,
+                bestAttempt.CaptureRegion.RelativeBounds,
+                bestAttempt.CaptureRegion.AbsoluteBounds),
+            bestAttempt.Text,
+            bestAttempt.CustomKeywordDetection,
+            bestAttempt.StateDetection,
+            attemptSummaries);
+    }
+
+    private static string BuildMarkdownReport(OcrProbeOptions options, OcrJsonSummary summary)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Ecloud OCR Probe");
+        builder.AppendLine("# Ecloud OCR 探测报告");
         builder.AppendLine();
-        builder.AppendLine($"- Captured at: {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz}");
-        builder.AppendLine($"- Target process path: `{options.ProcessPath}`");
-        builder.AppendLine($"- Selected PID: `{selectedProcess.ProcessId}`");
-        builder.AppendLine($"- Selected main window title: `{Escape(selectedProcess.MainWindowTitle)}`");
-        builder.AppendLine($"- Selected main window handle: `{ToHandleHex(selectedProcess.MainWindowHandle)}`");
-        builder.AppendLine($"- OCR language: `{options.LanguageTag}`");
-        builder.AppendLine($"- Capture mode: `{options.CaptureMode}`");
-        builder.AppendLine($"- Capture image: `{options.CaptureImagePath}`");
+        builder.AppendLine($"- 采集时间: {summary.CapturedAt:yyyy-MM-dd HH:mm:ss zzz}");
+        builder.AppendLine($"- 目标进程路径: `{summary.TargetProcessPath}`");
+        builder.AppendLine($"- 目标进程 PID: `{summary.Process.ProcessId}`");
+        builder.AppendLine($"- 目标主窗口标题: `{Escape(summary.Process.MainWindowTitle)}`");
+        builder.AppendLine($"- OCR 语言: `{options.LanguageTag}`");
+        builder.AppendLine($"- 抓图模式: `{summary.Capture.CaptureMode}`");
         builder.AppendLine();
-        builder.AppendLine("## Window Info");
+        builder.AppendLine("## 选中捕获窗口");
         builder.AppendLine();
-        builder.AppendLine($"- Window class: `{Escape(window.ClassName)}`");
-        builder.AppendLine($"- Window visible: `{window.IsVisible}`");
-        builder.AppendLine($"- Window minimized: `{window.IsMinimized}`");
-        builder.AppendLine($"- Window bounds: `{FormatRect(window.WindowBounds)}`");
-        builder.AppendLine($"- Client bounds: `{FormatRect(window.ClientBounds)}`");
+        builder.AppendLine($"- 句柄: `{summary.SelectedCaptureWindow.HandleHex}`");
+        builder.AppendLine($"- 标题: `{Escape(summary.SelectedCaptureWindow.Title)}`");
+        builder.AppendLine($"- 类名: `{Escape(summary.SelectedCaptureWindow.ClassName)}`");
+        builder.AppendLine($"- 来源: `{summary.SelectedCaptureWindow.SourceKind}`");
+        builder.AppendLine($"- 选择原因: `{Escape(summary.SelectedCaptureWindow.SelectionReason)}`");
+        builder.AppendLine($"- 可见: `{summary.SelectedCaptureWindow.IsVisible}`");
+        builder.AppendLine($"- 最小化: `{summary.SelectedCaptureWindow.IsMinimized}`");
+        builder.AppendLine($"- 启用: `{summary.SelectedCaptureWindow.IsEnabled}`");
+        builder.AppendLine($"- 窗口区域: `{FormatRect(summary.SelectedCaptureWindow.WindowBounds)}`");
+        builder.AppendLine($"- Client 区域: `{FormatRect(summary.SelectedCaptureWindow.ClientBounds)}`");
         builder.AppendLine();
-        builder.AppendLine("## Capture Region");
+        builder.AppendLine("## 默认状态区域");
         builder.AppendLine();
-        builder.AppendLine($"- Relative offset: `({options.RelativeX}, {options.RelativeY})`");
-        builder.AppendLine($"- Relative size: `{options.RegionWidth}x{options.RegionHeight}`");
-        builder.AppendLine($"- Absolute capture rect: `{FormatRect(captureRegion.AbsoluteBounds)}`");
+        builder.AppendLine($"- 相对区域: `{FormatRect(summary.Capture.RelativeBounds)}`");
+        builder.AppendLine($"- 绝对区域: `{FormatRect(summary.Capture.AbsoluteBounds)}`");
+        builder.AppendLine("- 说明: `默认区域已经固化为中部偏左状态检测区域。`");
         builder.AppendLine();
-        builder.AppendLine("## OCR Result");
+        builder.AppendLine("## OCR 文本");
         builder.AppendLine();
         builder.AppendLine("```text");
-        builder.AppendLine(string.IsNullOrWhiteSpace(recognition.Text) ? "<empty>" : recognition.Text.TrimEnd());
+        builder.AppendLine(string.IsNullOrWhiteSpace(summary.Text.Original) ? "<empty>" : summary.Text.Original.TrimEnd());
         builder.AppendLine("```");
         builder.AppendLine();
-        builder.AppendLine("Normalized OCR text:");
+        builder.AppendLine("归一化文本:");
         builder.AppendLine("```text");
-        builder.AppendLine(string.IsNullOrWhiteSpace(normalizedRecognizedText) ? "<empty>" : normalizedRecognizedText);
+        builder.AppendLine(string.IsNullOrWhiteSpace(summary.Text.Normalized) ? "<empty>" : summary.Text.Normalized);
         builder.AppendLine("```");
         builder.AppendLine();
-        builder.AppendLine("## Keyword Match");
+        builder.AppendLine("## 自定义关键词结果");
         builder.AppendLine();
-        builder.AppendLine($"- Configured keywords: `{string.Join(", ", options.Keywords)}`");
-        builder.AppendLine($"- Matched keywords: `{(matchedKeywords.Count == 0 ? "<none>" : string.Join(", ", matchedKeywords))}`");
-        builder.AppendLine($"- Any keyword matched: `{anyKeywordMatched}`");
-        builder.AppendLine($"- All keywords matched: `{allKeywordsMatched}`");
-        builder.AppendLine($"- Page hit by custom keywords: `{allKeywordsMatched}`");
-        builder.AppendLine($"- Detected state: `{detectedState ?? "<none>"}`");
-        builder.AppendLine($"- State hit: `{(detectedState is not null)}`");
+        builder.AppendLine($"- 配置关键词: `{string.Join(", ", summary.CustomKeywordDetection.ConfiguredKeywords)}`");
+        builder.AppendLine($"- 命中关键词: `{(summary.CustomKeywordDetection.MatchedKeywords.Count == 0 ? "<none>" : string.Join(", ", summary.CustomKeywordDetection.MatchedKeywords))}`");
+        builder.AppendLine($"- 任意命中: `{summary.CustomKeywordDetection.AnyMatched}`");
+        builder.AppendLine($"- 全部命中: `{summary.CustomKeywordDetection.AllMatched}`");
         builder.AppendLine();
-        builder.AppendLine("Configured states:");
-        foreach (var stateRule in options.StateRules)
+        builder.AppendLine("## 三态识别结果");
+        builder.AppendLine();
+        builder.AppendLine($"- 当前识别状态: `{summary.StateDetection.DetectedState ?? "<none>"}`");
+        builder.AppendLine($"- 状态命中: `{summary.StateDetection.IsMatched}`");
+        builder.AppendLine();
+        builder.AppendLine("状态规则:");
+        foreach (var state in summary.StateDetection.Candidates)
         {
-            builder.AppendLine($"- `{stateRule.Name}` requires `{string.Join(" + ", stateRule.RequiredTerms)}`");
+            builder.AppendLine($"- `{state.Name}`: 命中=`{state.IsMatched}`，已满足=`{string.Join(", ", state.MatchedTerms)}`，缺失=`{string.Join(", ", state.MissingTerms)}`");
         }
         builder.AppendLine();
-        builder.AppendLine("## OCR Lines");
+        builder.AppendLine("## OCR 行明细");
         builder.AppendLine();
-        if (recognition.Lines.Count == 0)
+        if (summary.Text.Lines.Count == 0)
         {
-            builder.AppendLine("No OCR text lines were recognized in the selected region.");
+            builder.AppendLine("当前区域没有识别出任何文本行。");
         }
         else
         {
-            builder.AppendLine("| Text | Bounds |");
+            builder.AppendLine("| 文本 | 边界 |");
             builder.AppendLine("| --- | --- |");
-            foreach (var line in recognition.Lines)
+            foreach (var line in summary.Text.Lines)
             {
                 builder.AppendLine($"| `{Escape(line.Text)}` | `{line.Bounds.X},{line.Bounds.Y},{line.Bounds.Width},{line.Bounds.Height}` |");
             }
         }
-
         builder.AppendLine();
-        builder.AppendLine("## Notes");
+        builder.AppendLine("## 窗口候选尝试");
         builder.AppendLine();
-        builder.AppendLine("- This probe is designed for fixed-region OCR only.");
-        builder.AppendLine("- It captures the screen pixels from the selected visible window client area.");
-        builder.AppendLine("- It does not use OCR for full-page understanding; it only checks whether configured keywords appear in the selected region.");
+        builder.AppendLine("| 句柄 | 来源 | 标题 | 类名 | 可见 | 最小化 | 区域可用 | 抓图成功 | 识别状态 | 文本长度 | 结果 |");
+        builder.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+        foreach (var attempt in summary.AttemptedWindows)
+        {
+            builder.AppendLine($"| `{attempt.HandleHex}` | `{attempt.SourceKind}` | `{Escape(attempt.Title)}` | `{Escape(attempt.ClassName)}` | {attempt.IsVisible} | {attempt.IsMinimized} | {attempt.RegionFits} | {attempt.CaptureSucceeded} | `{attempt.DetectedState ?? "<none>"}` | {attempt.NormalizedTextLength} | `{Escape(attempt.Result)}` |");
+        }
+        builder.AppendLine();
+        builder.AppendLine("## 说明");
+        builder.AppendLine();
+        builder.AppendLine("- 该工具只做固定区域 OCR 与只读状态识别。");
+        builder.AppendLine("- `window` 模式会优先尝试通过窗口句柄抓图，以减少前台遮挡的影响。");
+        builder.AppendLine("- `screen` 模式仍然依赖目标窗口实际显示在屏幕上。");
         return builder.ToString();
     }
 
@@ -422,66 +546,425 @@ internal static class OcrReportBuilder
     }
 }
 
+internal static class CaptureWindowSelector
+{
+    public static IReadOnlyList<CaptureWindowCandidate> GetOrderedCandidates(ProcessSnapshot process, OcrProbeOptions options)
+    {
+        var seeds = new Dictionary<long, CandidateSeed>();
+
+        AddSeed(process.MainWindowHandle, "MainWindow", "来自进程 MainWindowHandle。", 300);
+        foreach (var handle in Win32Capture.GetTopLevelWindowHandles(process.ProcessId))
+        {
+            AddSeed(handle, "TopLevelWindow", "来自同进程顶层窗口。", 200);
+        }
+
+        if (process.MainWindowHandle != 0)
+        {
+            foreach (var handle in Win32Capture.GetDescendantWindowHandles(process.MainWindowHandle, maxDepth: 2))
+            {
+                AddSeed(handle, "RenderHost", "来自主窗口下的子窗口或 RenderHost。", 260);
+            }
+        }
+
+        var candidates = new List<CaptureWindowCandidate>(seeds.Count);
+        foreach (var seed in seeds.Values)
+        {
+            if (!Win32Capture.TryGetWindowInfo(seed.Handle, out var window))
+            {
+                continue;
+            }
+
+            var fitsRequestedRegion = window.ClientBounds.Width >= options.RelativeX + options.RegionWidth &&
+                window.ClientBounds.Height >= options.RelativeY + options.RegionHeight;
+            var scoreReasons = new List<string>();
+            var selectionScore = seed.BaseScore;
+
+            if (window.IsVisible)
+            {
+                selectionScore += 120;
+                scoreReasons.Add("可见");
+            }
+
+            if (!window.IsMinimized)
+            {
+                selectionScore += 100;
+                scoreReasons.Add("未最小化");
+            }
+
+            if (window.IsEnabled)
+            {
+                selectionScore += 40;
+            }
+
+            if (fitsRequestedRegion)
+            {
+                selectionScore += 150;
+                scoreReasons.Add("可容纳默认状态区域");
+            }
+            else
+            {
+                selectionScore -= 150;
+                scoreReasons.Add("Client 区域不足");
+            }
+
+            if (!string.IsNullOrWhiteSpace(window.Title))
+            {
+                selectionScore += 30;
+            }
+
+            if (window.Title.Contains("移动云电脑", StringComparison.OrdinalIgnoreCase))
+            {
+                selectionScore += 80;
+                scoreReasons.Add("标题命中移动云电脑");
+            }
+
+            if (window.Title.Contains("settingWindow", StringComparison.OrdinalIgnoreCase))
+            {
+                selectionScore -= 250;
+                scoreReasons.Add("疑似设置窗口");
+            }
+
+            if (window.ClassName.Contains("Chrome_RenderWidgetHostHWND", StringComparison.OrdinalIgnoreCase))
+            {
+                selectionScore += 80;
+                scoreReasons.Add("RenderHost 内容窗口");
+            }
+            else if (window.ClassName.Contains("Chrome_WidgetWin_0", StringComparison.OrdinalIgnoreCase))
+            {
+                selectionScore += 20;
+            }
+
+            var areaBonus = Math.Min((window.ClientBounds.Width * window.ClientBounds.Height) / 20000, 120);
+            selectionScore += areaBonus;
+            candidates.Add(new CaptureWindowCandidate(
+                window.Handle,
+                window.HandleHex,
+                window.Title,
+                window.ClassName,
+                seed.SourceKind,
+                seed.SourceReason,
+                string.Join("，", scoreReasons),
+                window.IsVisible,
+                window.IsMinimized,
+                window.IsEnabled,
+                window.WindowBounds,
+                window.ClientBounds,
+                fitsRequestedRegion,
+                selectionScore));
+        }
+
+        return candidates
+            .OrderByDescending(candidate => candidate.SelectionScore)
+            .ThenByDescending(candidate => candidate.IsVisible)
+            .ThenBy(candidate => candidate.IsMinimized)
+            .ThenByDescending(candidate => candidate.ClientBounds.Width * candidate.ClientBounds.Height)
+            .ToList();
+
+        void AddSeed(long handle, string sourceKind, string sourceReason, int baseScore)
+        {
+            if (handle == 0)
+            {
+                return;
+            }
+
+            if (seeds.TryGetValue(handle, out var existing) && existing.BaseScore >= baseScore)
+            {
+                return;
+            }
+
+            seeds[handle] = new CandidateSeed(handle, sourceKind, sourceReason, baseScore);
+        }
+    }
+}
+
+internal static class Win32Capture
+{
+    public static bool TryGetWindowInfo(long handleValue, out WindowInfo window)
+    {
+        window = default!;
+
+        var handle = new IntPtr(handleValue);
+        if (!GetWindowRect(handle, out var windowRect) || !GetClientRect(handle, out var clientRect))
+        {
+            return false;
+        }
+
+        var topLeft = new PointStruct { X = clientRect.Left, Y = clientRect.Top };
+        var bottomRight = new PointStruct { X = clientRect.Right, Y = clientRect.Bottom };
+        if (!ClientToScreen(handle, ref topLeft) || !ClientToScreen(handle, ref bottomRight))
+        {
+            return false;
+        }
+
+        window = new WindowInfo(
+            handleValue,
+            ToHandleHex(handleValue),
+            GetWindowTextValue(handle),
+            GetClassNameValue(handle),
+            IsWindowVisible(handle),
+            IsIconic(handle),
+            IsWindowEnabled(handle),
+            new Int32Rect(windowRect.Left, windowRect.Top, windowRect.Right - windowRect.Left, windowRect.Bottom - windowRect.Top),
+            new Int32Rect(topLeft.X, topLeft.Y, bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y));
+        return true;
+    }
+
+    public static IReadOnlyList<long> GetTopLevelWindowHandles(int processId)
+    {
+        var handles = new List<long>();
+        EnumWindows((handle, parameter) =>
+        {
+            GetWindowThreadProcessId(handle, out var currentProcessId);
+            if (currentProcessId == processId)
+            {
+                handles.Add(handle.ToInt64());
+            }
+
+            return true;
+        }, IntPtr.Zero);
+        return handles;
+    }
+
+    public static IReadOnlyList<long> GetDescendantWindowHandles(long parentHandle, int maxDepth)
+    {
+        var handles = new List<long>();
+        CollectChildren(new IntPtr(parentHandle), 1, maxDepth, handles);
+        return handles;
+    }
+
+    public static bool TryResolveCaptureRegion(Int32Rect clientBounds, int relativeX, int relativeY, int width, int height, out CaptureRegion captureRegion)
+    {
+        captureRegion = default!;
+        if (width <= 0 || height <= 0)
+        {
+            return false;
+        }
+
+        var absoluteX = clientBounds.X + relativeX;
+        var absoluteY = clientBounds.Y + relativeY;
+        if (absoluteX < clientBounds.X || absoluteY < clientBounds.Y || absoluteX + width > clientBounds.X + clientBounds.Width || absoluteY + height > clientBounds.Y + clientBounds.Height)
+        {
+            return false;
+        }
+
+        captureRegion = new CaptureRegion(
+            new Int32Rect(absoluteX, absoluteY, width, height),
+            new Int32Rect(relativeX, relativeY, width, height));
+        return true;
+    }
+
+    public static Bitmap? TryCaptureRegion(CaptureWindowCandidate candidate, CaptureRegion region, CaptureMode captureMode)
+    {
+        return captureMode == CaptureMode.Window
+            ? TryCaptureWindowRegion(candidate, region)
+            : TryCaptureScreenRegion(candidate, region);
+    }
+
+    // window 模式优先走句柄抓图，避免前台窗口遮挡导致读到错误内容。
+    private static Bitmap? TryCaptureWindowRegion(CaptureWindowCandidate candidate, CaptureRegion region)
+    {
+        using var clientBitmap = TryCaptureClientBitmap(candidate);
+        if (clientBitmap is null)
+        {
+            return candidate.IsVisible && !candidate.IsMinimized
+                ? TryCaptureScreenRegion(candidate, region)
+                : null;
+        }
+
+        var relative = region.RelativeBounds;
+        if (relative.X < 0 || relative.Y < 0 || relative.X + relative.Width > clientBitmap.Width || relative.Y + relative.Height > clientBitmap.Height)
+        {
+            return null;
+        }
+
+        var croppedBitmap = new Bitmap(relative.Width, relative.Height, PixelFormat.Format32bppArgb);
+        using var graphics = Graphics.FromImage(croppedBitmap);
+        graphics.DrawImage(
+            clientBitmap,
+            new Rectangle(0, 0, relative.Width, relative.Height),
+            new Rectangle(relative.X, relative.Y, relative.Width, relative.Height),
+            GraphicsUnit.Pixel);
+        return croppedBitmap;
+    }
+
+    private static Bitmap? TryCaptureClientBitmap(CaptureWindowCandidate candidate)
+    {
+        if (candidate.WindowBounds.Width <= 0 || candidate.WindowBounds.Height <= 0 || candidate.ClientBounds.Width <= 0 || candidate.ClientBounds.Height <= 0)
+        {
+            return null;
+        }
+
+        using var windowBitmap = new Bitmap(candidate.WindowBounds.Width, candidate.WindowBounds.Height, PixelFormat.Format32bppArgb);
+        var printed = false;
+        using (var windowGraphics = Graphics.FromImage(windowBitmap))
+        {
+            var hdc = windowGraphics.GetHdc();
+            try
+            {
+                printed = PrintWindow(new IntPtr(candidate.Handle), hdc, PrintWindowFlags.RenderFullContent);
+            }
+            finally
+            {
+                windowGraphics.ReleaseHdc(hdc);
+            }
+        }
+
+        if (!printed)
+        {
+            return null;
+        }
+
+        var offsetX = candidate.ClientBounds.X - candidate.WindowBounds.X;
+        var offsetY = candidate.ClientBounds.Y - candidate.WindowBounds.Y;
+        if (offsetX < 0 || offsetY < 0 || offsetX + candidate.ClientBounds.Width > windowBitmap.Width || offsetY + candidate.ClientBounds.Height > windowBitmap.Height)
+        {
+            return null;
+        }
+
+        var clientBitmap = new Bitmap(candidate.ClientBounds.Width, candidate.ClientBounds.Height, PixelFormat.Format32bppArgb);
+        using var clientGraphics = Graphics.FromImage(clientBitmap);
+        clientGraphics.DrawImage(
+            windowBitmap,
+            new Rectangle(0, 0, clientBitmap.Width, clientBitmap.Height),
+            new Rectangle(offsetX, offsetY, clientBitmap.Width, clientBitmap.Height),
+            GraphicsUnit.Pixel);
+        return clientBitmap;
+    }
+
+    private static Bitmap? TryCaptureScreenRegion(CaptureWindowCandidate candidate, CaptureRegion region)
+    {
+        if (!candidate.IsVisible || candidate.IsMinimized)
+        {
+            return null;
+        }
+
+        var bitmap = new Bitmap(region.AbsoluteBounds.Width, region.AbsoluteBounds.Height, PixelFormat.Format32bppArgb);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.CopyFromScreen(region.AbsoluteBounds.X, region.AbsoluteBounds.Y, 0, 0, new Size(region.AbsoluteBounds.Width, region.AbsoluteBounds.Height), CopyPixelOperation.SourceCopy);
+        return bitmap;
+    }
+
+    private static void CollectChildren(IntPtr parentHandle, int depth, int maxDepth, List<long> handles)
+    {
+        if (depth > maxDepth)
+        {
+            return;
+        }
+
+        var childHandle = GetWindow(parentHandle, GetWindowCommand.FirstChild);
+        while (childHandle != IntPtr.Zero)
+        {
+            handles.Add(childHandle.ToInt64());
+            CollectChildren(childHandle, depth + 1, maxDepth, handles);
+            childHandle = GetWindow(childHandle, GetWindowCommand.NextSibling);
+        }
+    }
+
+    private static string GetWindowTextValue(IntPtr handle)
+    {
+        var length = GetWindowTextLength(handle);
+        if (length <= 0)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(length + 1);
+        GetWindowText(handle, builder, builder.Capacity);
+        return builder.ToString();
+    }
+
+    private static string GetClassNameValue(IntPtr handle)
+    {
+        var builder = new StringBuilder(256);
+        GetClassName(handle, builder, builder.Capacity);
+        return builder.ToString();
+    }
+
+    private static string ToHandleHex(long value)
+    {
+        return value == 0 ? "0x0" : $"0x{value:X}";
+    }
+
+    private delegate bool EnumWindowsProc(IntPtr handle, IntPtr parameter);
+
+    private enum GetWindowCommand : uint
+    {
+        NextSibling = 2,
+        FirstChild = 5,
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RectStruct
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PointStruct
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr parameter);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr handle, out int processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr handle, out RectStruct rect);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetClientRect(IntPtr handle, out RectStruct rect);
+
+    [DllImport("user32.dll")]
+    private static extern bool ClientToScreen(IntPtr handle, ref PointStruct point);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowEnabled(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetWindow(IntPtr handle, GetWindowCommand command);
+
+    [DllImport("user32.dll")]
+    private static extern bool PrintWindow(IntPtr handle, IntPtr deviceContext, PrintWindowFlags flags);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowTextLength(IntPtr handle);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr handle, StringBuilder text, int maxLength);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr handle, StringBuilder className, int maxCount);
+
+    [Flags]
+    private enum PrintWindowFlags : uint
+    {
+        RenderFullContent = 0x2,
+    }
+}
+
 internal sealed record OcrReport(
     string OutputMarkdownPath,
     string OutputJsonPath,
     string CaptureImagePath,
-    ProcessSnapshot SelectedProcess,
     Bitmap CapturedBitmap,
     string Markdown,
-    string RecognizedText,
-    IReadOnlyList<string> MatchedKeywords,
-    bool AnyKeywordMatched,
-    bool AllKeywordsMatched,
-    string? DetectedState,
-    OcrJsonSummary JsonSummary);
-
-internal sealed record StateRule(string Name, IReadOnlyList<string> RequiredTerms);
-
-internal sealed record OcrJsonSummary(
-    DateTimeOffset CapturedAt,
-    string TargetProcessPath,
-    int SelectedProcessId,
-    string SelectedMainWindowTitle,
-    string SelectedMainWindowHandle,
-    string OcrLanguage,
-    OcrWindowSummary Window,
-    OcrCaptureSummary Capture,
-    string RecognizedText,
-    string NormalizedRecognizedText,
-    IReadOnlyList<string> MatchedKeywords,
-    bool AnyKeywordMatched,
-    bool AllKeywordsMatched,
-    string? DetectedState,
-    IReadOnlyList<StateRule> ConfiguredStates,
-    IReadOnlyList<OcrLineSnapshot> Lines);
-
-internal sealed record OcrWindowSummary(
-    string ClassName,
-    bool IsVisible,
-    bool IsMinimized,
-    Int32Rect WindowBounds,
-    Int32Rect ClientBounds);
-
-internal sealed record OcrCaptureSummary(
-    CaptureMode CaptureMode,
-    int RelativeX,
-    int RelativeY,
-    int Width,
-    int Height,
-    Int32Rect AbsoluteBounds);
-
-internal enum CaptureMode
+    OcrJsonSummary JsonSummary)
 {
-    Screen,
-    Window,
+    public ProcessSummary Process => JsonSummary.Process;
 }
-
-internal sealed record OcrRecognitionSnapshot(string Text, IReadOnlyList<OcrLineSnapshot> Lines);
-
-internal sealed record OcrLineSnapshot(string Text, OcrRectangleSnapshot Bounds);
-
-internal sealed record OcrRectangleSnapshot(uint X, uint Y, uint Width, uint Height);
 
 internal sealed record ProcessSnapshot(
     int ProcessId,
@@ -515,179 +998,135 @@ internal sealed record ProcessSnapshot(
     }
 }
 
+internal sealed record CandidateSeed(long Handle, string SourceKind, string SourceReason, int BaseScore);
+
+internal sealed record CaptureWindowCandidate(
+    long Handle,
+    string HandleHex,
+    string Title,
+    string ClassName,
+    string SourceKind,
+    string SourceReason,
+    string SelectionReason,
+    bool IsVisible,
+    bool IsMinimized,
+    bool IsEnabled,
+    Int32Rect WindowBounds,
+    Int32Rect ClientBounds,
+    bool FitsRequestedRegion,
+    int SelectionScore);
+
+internal sealed record OcrCaptureAttempt(
+    CaptureWindowCandidate Candidate,
+    CaptureRegion CaptureRegion,
+    Bitmap CapturedBitmap,
+    OcrTextSummary Text,
+    CustomKeywordDetectionSummary CustomKeywordDetection,
+    StateDetectionSummary StateDetection)
+{
+    public int Score =>
+        (StateDetection.IsMatched ? 100_000 : 0) +
+        (CustomKeywordDetection.AnyMatched ? 10_000 : 0) +
+        Text.Normalized.Length +
+        Candidate.SelectionScore;
+}
+
+internal sealed record OcrJsonSummary(
+    string SchemaVersion,
+    DateTimeOffset CapturedAt,
+    string TargetProcessPath,
+    ProcessSummary Process,
+    CaptureWindowSummary SelectedCaptureWindow,
+    CaptureRegionSummary Capture,
+    OcrTextSummary Text,
+    CustomKeywordDetectionSummary CustomKeywordDetection,
+    StateDetectionSummary StateDetection,
+    IReadOnlyList<CaptureAttemptSummary> AttemptedWindows);
+
+internal sealed record ProcessSummary(
+    int ProcessId,
+    string ProcessName,
+    string? ExecutablePath,
+    string MainWindowTitle,
+    string MainWindowHandleHex);
+
+internal sealed record CaptureWindowSummary(
+    string HandleHex,
+    string Title,
+    string ClassName,
+    string SourceKind,
+    string SelectionReason,
+    bool IsVisible,
+    bool IsMinimized,
+    bool IsEnabled,
+    Int32Rect WindowBounds,
+    Int32Rect ClientBounds,
+    int SelectionScore);
+
+internal sealed record CaptureRegionSummary(
+    CaptureMode CaptureMode,
+    Int32Rect RelativeBounds,
+    Int32Rect AbsoluteBounds);
+
+internal sealed record CustomKeywordDetectionSummary(
+    IReadOnlyList<string> ConfiguredKeywords,
+    IReadOnlyList<string> MatchedKeywords,
+    bool AnyMatched,
+    bool AllMatched);
+
+internal sealed record StateDetectionSummary(
+    string? DetectedState,
+    bool IsMatched,
+    IReadOnlyList<StateRuleEvaluation> Candidates);
+
+internal sealed record StateRule(string Name, IReadOnlyList<string> RequiredTerms);
+
+internal sealed record StateRuleEvaluation(
+    string Name,
+    IReadOnlyList<string> RequiredTerms,
+    IReadOnlyList<string> MatchedTerms,
+    IReadOnlyList<string> MissingTerms,
+    bool IsMatched);
+
+internal sealed record OcrTextSummary(
+    string Original,
+    string Normalized,
+    IReadOnlyList<OcrLineSnapshot> Lines);
+
+internal sealed record CaptureAttemptSummary(
+    string HandleHex,
+    string SourceKind,
+    string Title,
+    string ClassName,
+    bool IsVisible,
+    bool IsMinimized,
+    bool RegionFits,
+    bool CaptureSucceeded,
+    int NormalizedTextLength,
+    string? DetectedState,
+    string Result);
+
+internal enum CaptureMode
+{
+    Screen,
+    Window,
+}
+
+internal sealed record OcrLineSnapshot(string Text, OcrRectangleSnapshot Bounds);
+
+internal sealed record OcrRectangleSnapshot(uint X, uint Y, uint Width, uint Height);
+
 internal sealed record Int32Rect(int X, int Y, int Width, int Height);
 
-internal sealed record WindowInfo(long Handle, string ClassName, bool IsVisible, bool IsMinimized, Int32Rect WindowBounds, Int32Rect ClientBounds);
+internal sealed record WindowInfo(
+    long Handle,
+    string HandleHex,
+    string Title,
+    string ClassName,
+    bool IsVisible,
+    bool IsMinimized,
+    bool IsEnabled,
+    Int32Rect WindowBounds,
+    Int32Rect ClientBounds);
 
 internal sealed record CaptureRegion(Int32Rect AbsoluteBounds, Int32Rect RelativeBounds);
-
-internal static class Win32Capture
-{
-    public static WindowInfo GetWindowInfo(long handleValue)
-    {
-        var handle = new IntPtr(handleValue);
-        if (!GetWindowRect(handle, out var windowRect))
-        {
-            throw new InvalidOperationException("Failed to read the window bounds.");
-        }
-
-        if (!GetClientRect(handle, out var clientRect))
-        {
-            throw new InvalidOperationException("Failed to read the client bounds.");
-        }
-
-        var topLeft = new PointStruct { X = clientRect.Left, Y = clientRect.Top };
-        var bottomRight = new PointStruct { X = clientRect.Right, Y = clientRect.Bottom };
-        if (!ClientToScreen(handle, ref topLeft) || !ClientToScreen(handle, ref bottomRight))
-        {
-            throw new InvalidOperationException("Failed to translate client bounds into screen coordinates.");
-        }
-
-        return new WindowInfo(
-            handleValue,
-            GetClassName(handle),
-            IsWindowVisible(handle),
-            IsIconic(handle),
-            new Int32Rect(windowRect.Left, windowRect.Top, windowRect.Right - windowRect.Left, windowRect.Bottom - windowRect.Top),
-            new Int32Rect(topLeft.X, topLeft.Y, bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y));
-    }
-
-    public static CaptureRegion ResolveCaptureRegion(Int32Rect clientBounds, int relativeX, int relativeY, int width, int height)
-    {
-        if (width <= 0 || height <= 0)
-        {
-            throw new InvalidOperationException("The OCR capture region must have positive width and height.");
-        }
-
-        var absoluteX = clientBounds.X + relativeX;
-        var absoluteY = clientBounds.Y + relativeY;
-        if (absoluteX < clientBounds.X || absoluteY < clientBounds.Y || absoluteX + width > clientBounds.X + clientBounds.Width || absoluteY + height > clientBounds.Y + clientBounds.Height)
-        {
-            throw new InvalidOperationException("The OCR capture region is outside the selected window client bounds.");
-        }
-
-        return new CaptureRegion(
-            new Int32Rect(absoluteX, absoluteY, width, height),
-            new Int32Rect(relativeX, relativeY, width, height));
-    }
-
-    public static Bitmap CaptureRegion(WindowInfo window, CaptureRegion region, CaptureMode captureMode)
-    {
-        if (captureMode == CaptureMode.Window)
-        {
-            return CaptureWindowRegion(window, region);
-        }
-
-        return CaptureScreenRegion(region);
-    }
-
-    private static Bitmap CaptureWindowRegion(WindowInfo window, CaptureRegion region)
-    {
-        using var clientBitmap = CaptureClientBitmap(window);
-        var relative = region.RelativeBounds;
-        var croppedBitmap = new Bitmap(relative.Width, relative.Height, PixelFormat.Format32bppArgb);
-        using var graphics = Graphics.FromImage(croppedBitmap);
-        graphics.DrawImage(
-            clientBitmap,
-            new Rectangle(0, 0, relative.Width, relative.Height),
-            new Rectangle(relative.X, relative.Y, relative.Width, relative.Height),
-            GraphicsUnit.Pixel);
-
-        return croppedBitmap;
-    }
-
-    private static Bitmap CaptureClientBitmap(WindowInfo window)
-    {
-        var windowBitmap = new Bitmap(window.WindowBounds.Width, window.WindowBounds.Height, PixelFormat.Format32bppArgb);
-        var printed = false;
-        using (var graphics = Graphics.FromImage(windowBitmap))
-        {
-            var hdc = graphics.GetHdc();
-            try
-            {
-                printed = PrintWindow(new IntPtr(window.Handle), hdc, PrintWindowFlags.RenderFullContent);
-            }
-            finally
-            {
-                graphics.ReleaseHdc(hdc);
-            }
-        }
-
-        if (!printed)
-        {
-            windowBitmap.Dispose();
-            return CaptureScreenRegion(new CaptureRegion(window.ClientBounds, new Int32Rect(0, 0, window.ClientBounds.Width, window.ClientBounds.Height)));
-        }
-
-        var offsetX = window.ClientBounds.X - window.WindowBounds.X;
-        var offsetY = window.ClientBounds.Y - window.WindowBounds.Y;
-        var clientBitmap = new Bitmap(window.ClientBounds.Width, window.ClientBounds.Height, PixelFormat.Format32bppArgb);
-        using var clientGraphics = Graphics.FromImage(clientBitmap);
-        clientGraphics.DrawImage(
-            windowBitmap,
-            new Rectangle(0, 0, clientBitmap.Width, clientBitmap.Height),
-            new Rectangle(offsetX, offsetY, clientBitmap.Width, clientBitmap.Height),
-            GraphicsUnit.Pixel);
-        windowBitmap.Dispose();
-        return clientBitmap;
-    }
-
-    private static Bitmap CaptureScreenRegion(CaptureRegion region)
-    {
-        var bitmap = new Bitmap(region.AbsoluteBounds.Width, region.AbsoluteBounds.Height, PixelFormat.Format32bppArgb);
-        using var graphics = Graphics.FromImage(bitmap);
-        graphics.CopyFromScreen(region.AbsoluteBounds.X, region.AbsoluteBounds.Y, 0, 0, new Size(region.AbsoluteBounds.Width, region.AbsoluteBounds.Height), CopyPixelOperation.SourceCopy);
-        return bitmap;
-    }
-
-    private static string GetClassName(IntPtr handle)
-    {
-        var builder = new StringBuilder(256);
-        GetClassName(handle, builder, builder.Capacity);
-        return builder.ToString();
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RectStruct
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PointStruct
-    {
-        public int X;
-        public int Y;
-    }
-
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(IntPtr handle, out RectStruct rect);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetClientRect(IntPtr handle, out RectStruct rect);
-
-    [DllImport("user32.dll")]
-    private static extern bool ClientToScreen(IntPtr handle, ref PointStruct point);
-
-    [DllImport("user32.dll")]
-    private static extern bool IsWindowVisible(IntPtr handle);
-
-    [DllImport("user32.dll")]
-    private static extern bool IsIconic(IntPtr handle);
-
-    [DllImport("user32.dll")]
-    private static extern bool PrintWindow(IntPtr handle, IntPtr deviceContext, PrintWindowFlags flags);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetClassName(IntPtr handle, StringBuilder className, int maxCount);
-
-    [Flags]
-    private enum PrintWindowFlags : uint
-    {
-        None = 0x0,
-        RenderFullContent = 0x2,
-    }
-}

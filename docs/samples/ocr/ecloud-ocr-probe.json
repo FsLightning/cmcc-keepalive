@@ -1,67 +1,251 @@
 {
-  "capturedAt": "2026-04-25T23:37:49.4602374+08:00",
+  "schemaVersion": "1.0",
+  "capturedAt": "2026-04-25T23:54:28.0072348+08:00",
   "targetProcessPath": "C:\\Program Files (x86)\\Ecloud\\CloudComputer\\Ecloud Cloud Computer Application.exe",
-  "selectedProcessId": 12124,
-  "selectedMainWindowTitle": "\u79FB\u52A8\u4E91\u7535\u8111",
-  "selectedMainWindowHandle": "0x30494",
-  "ocrLanguage": "zh-CN",
-  "window": {
-    "className": "Chrome_WidgetWin_0",
-    "isVisible": true,
+  "process": {
+    "processId": 12124,
+    "processName": "Ecloud Cloud Computer Application",
+    "executablePath": "C:\\Program Files (x86)\\Ecloud\\CloudComputer\\Ecloud Cloud Computer Application.exe",
+    "mainWindowTitle": "\u79FB\u52A8\u4E91\u7535\u8111",
+    "mainWindowHandleHex": "0x30494"
+  },
+  "selectedCaptureWindow": {
+    "handleHex": "0x70526",
+    "title": "Chrome Legacy Window",
+    "className": "Chrome_RenderWidgetHostHWND",
+    "sourceKind": "RenderHost",
+    "selectionReason": "\u672A\u6700\u5C0F\u5316\uFF0C\u53EF\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\uFF0CRenderHost \u5185\u5BB9\u7A97\u53E3",
+    "isVisible": false,
     "isMinimized": false,
+    "isEnabled": true,
     "windowBounds": {
-      "x": -2,
-      "y": 6,
-      "width": 2048,
-      "height": 1114
+      "x": -25600,
+      "y": -25600,
+      "width": 1624,
+      "height": 948
     },
     "clientBounds": {
-      "x": 5,
-      "y": 37,
-      "width": 2033,
-      "height": 1076
-    }
+      "x": -25600,
+      "y": -25600,
+      "width": 1624,
+      "height": 948
+    },
+    "selectionScore": 736
   },
   "capture": {
-    "relativeX": 120,
-    "relativeY": 220,
-    "width": 760,
-    "height": 520,
+    "captureMode": 1,
+    "relativeBounds": {
+      "x": 120,
+      "y": 220,
+      "width": 1200,
+      "height": 700
+    },
     "absoluteBounds": {
-      "x": 125,
-      "y": 257,
-      "width": 760,
-      "height": 520
+      "x": -25480,
+      "y": -25380,
+      "width": 1200,
+      "height": 700
     }
   },
-  "recognizedText": "",
-  "normalizedRecognizedText": "",
-  "matchedKeywords": [],
-  "anyKeywordMatched": false,
-  "allKeywordsMatched": true,
-  "detectedState": null,
-  "configuredStates": [
+  "text": {
+    "original": "",
+    "normalized": "",
+    "lines": []
+  },
+  "customKeywordDetection": {
+    "configuredKeywords": [],
+    "matchedKeywords": [],
+    "anyMatched": false,
+    "allMatched": false
+  },
+  "stateDetection": {
+    "detectedState": null,
+    "isMatched": false,
+    "candidates": [
+      {
+        "name": "Windows \u5DF2\u5173\u673A",
+        "requiredTerms": [
+          "Windows",
+          "\u5DF2\u5173\u673A"
+        ],
+        "matchedTerms": [],
+        "missingTerms": [
+          "Windows",
+          "\u5DF2\u5173\u673A"
+        ],
+        "isMatched": false
+      },
+      {
+        "name": "Windows \u5173\u673A\u4E2D",
+        "requiredTerms": [
+          "Windows",
+          "\u5173\u673A\u4E2D"
+        ],
+        "matchedTerms": [],
+        "missingTerms": [
+          "Windows",
+          "\u5173\u673A\u4E2D"
+        ],
+        "isMatched": false
+      },
+      {
+        "name": "Windows \u8FD0\u884C\u4E2D",
+        "requiredTerms": [
+          "Windows",
+          "\u8FD0\u884C\u4E2D"
+        ],
+        "matchedTerms": [],
+        "missingTerms": [
+          "Windows",
+          "\u8FD0\u884C\u4E2D"
+        ],
+        "isMatched": false
+      }
+    ]
+  },
+  "attemptedWindows": [
     {
-      "name": "Windows \u5DF2\u5173\u673A",
-      "requiredTerms": [
-        "Windows",
-        "\u5DF2\u5173\u673A"
-      ]
+      "handleHex": "0x70526",
+      "sourceKind": "RenderHost",
+      "title": "Chrome Legacy Window",
+      "className": "Chrome_RenderWidgetHostHWND",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
     },
     {
-      "name": "Windows \u5173\u673A\u4E2D",
-      "requiredTerms": [
-        "Windows",
-        "\u5173\u673A\u4E2D"
-      ]
+      "handleHex": "0x30494",
+      "sourceKind": "MainWindow",
+      "title": "\u79FB\u52A8\u4E91\u7535\u8111",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": true,
+      "isMinimized": true,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
     },
     {
-      "name": "Windows \u8FD0\u884C\u4E2D",
-      "requiredTerms": [
-        "Windows",
-        "\u8FD0\u884C\u4E2D"
-      ]
+      "handleHex": "0x8052A",
+      "sourceKind": "TopLevelWindow",
+      "title": "settingWindow",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
+    },
+    {
+      "handleHex": "0x80480",
+      "sourceKind": "TopLevelWindow",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+    },
+    {
+      "handleHex": "0x2603AE",
+      "sourceKind": "TopLevelWindow",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+    },
+    {
+      "handleHex": "0x7047A",
+      "sourceKind": "TopLevelWindow",
+      "title": "",
+      "className": "Chrome_SystemMessageWindow",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+    },
+    {
+      "handleHex": "0x1104A4",
+      "sourceKind": "TopLevelWindow",
+      "title": "",
+      "className": "Electron_NotifyIconHostWindow",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+    },
+    {
+      "handleHex": "0x50492",
+      "sourceKind": "TopLevelWindow",
+      "title": "",
+      "className": "Base_PowerMessageWindow",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+    },
+    {
+      "handleHex": "0x70524",
+      "sourceKind": "TopLevelWindow",
+      "title": "MSCTFIME UI",
+      "className": "MSCTFIME UI",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+    },
+    {
+      "handleHex": "0x15001C",
+      "sourceKind": "TopLevelWindow",
+      "title": "Default IME",
+      "className": "IME",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+    },
+    {
+      "handleHex": "0xA0478",
+      "sourceKind": "TopLevelWindow",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
     }
-  ],
-  "lines": []
+  ]
 }
