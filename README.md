@@ -43,6 +43,8 @@ dotnet run --project .\src\WindowInspector\WindowInspector.csproj
 dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --keywords 页面关键词1,页面关键词2
 ```
 
+The OCR probe can also produce a read-only tri-state result for the observed page region: `Windows 已关机`, `Windows 关机中`, or `Windows 运行中`.
+
 ## Configuration
 
 Edit `src/GuardService/appsettings.json` and set the target process name, optional executable path, and window keyword rules.
@@ -51,7 +53,7 @@ The current confirmed target process for this repository is `Ecloud Cloud Comput
 
 The window-inspector tool defaults to the same target executable path and exports a Markdown snapshot under `docs/samples`.
 
-The OCR probe also defaults to the same target executable path. It captures a fixed client-area region, runs Chinese OCR, and records whether any configured keywords are present.
+The OCR probe also defaults to the same target executable path. It captures a fixed client-area region, runs Chinese OCR, records keyword matches, derives the current Windows state when possible, and writes both Markdown and JSON outputs under `docs/samples/ocr`.
 
 ## Collaboration notes
 

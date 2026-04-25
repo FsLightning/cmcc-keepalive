@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using Windows.Globalization;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
@@ -17,27 +18,39 @@ if (!OperatingSystem.IsWindows())
 var options = OcrProbeOptions.Parse(args);
 var report = await OcrReportBuilder.BuildAsync(options);
 Directory.CreateDirectory(Path.GetDirectoryName(report.OutputMarkdownPath)!);
+Directory.CreateDirectory(Path.GetDirectoryName(report.OutputJsonPath)!);
 Directory.CreateDirectory(Path.GetDirectoryName(report.CaptureImagePath)!);
 await File.WriteAllTextAsync(report.OutputMarkdownPath, report.Markdown, new UTF8Encoding(false));
+await File.WriteAllTextAsync(report.OutputJsonPath, JsonSerializer.Serialize(report.JsonSummary, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+{
+    WriteIndented = true,
+}), new UTF8Encoding(false));
 report.CapturedBitmap.Save(report.CaptureImagePath, ImageFormat.Png);
 Console.WriteLine($"OCR report written to {report.OutputMarkdownPath}");
+Console.WriteLine($"OCR JSON written to {report.OutputJsonPath}");
 Console.WriteLine($"Capture image written to {report.CaptureImagePath}");
 Console.WriteLine($"Selected process: PID={report.SelectedProcess.ProcessId}, MainWindowTitle={report.SelectedProcess.MainWindowTitle}");
 Console.WriteLine($"OCR text: {report.RecognizedText.Replace(Environment.NewLine, " ")}");
 Console.WriteLine($"Matched keywords: {(report.MatchedKeywords.Count == 0 ? "<none>" : string.Join(", ", report.MatchedKeywords))}");
+Console.WriteLine($"Any keyword matched: {report.AnyKeywordMatched}");
+Console.WriteLine($"All keywords matched: {report.AllKeywordsMatched}");
+Console.WriteLine($"Detected state: {report.DetectedState ?? "<none>"}");
 return 0;
 
 internal sealed record OcrProbeOptions(
     string ProcessPath,
     string ProcessName,
     string OutputMarkdownPath,
+    string OutputJsonPath,
     string CaptureImagePath,
+    CaptureMode CaptureMode,
     string LanguageTag,
     int RelativeX,
     int RelativeY,
     int RegionWidth,
     int RegionHeight,
-    IReadOnlyList<string> Keywords)
+    IReadOnlyList<string> Keywords,
+    IReadOnlyList<StateRule> StateRules)
 {
     public static OcrProbeOptions Parse(string[] args)
     {
@@ -69,9 +82,17 @@ internal sealed record OcrProbeOptions(
             ? configuredImageOutput
             : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "samples", "ocr", "ecloud-ocr-probe.png");
 
+        var outputJsonPath = values.TryGetValue("--json-output", out var configuredJsonOutput)
+            ? configuredJsonOutput
+            : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "samples", "ocr", "ecloud-ocr-probe.json");
+
         var languageTag = values.TryGetValue("--language", out var configuredLanguage)
             ? configuredLanguage
             : "zh-CN";
+        var captureMode = values.TryGetValue("--capture-mode", out var configuredCaptureMode) &&
+            Enum.TryParse<CaptureMode>(configuredCaptureMode, true, out var parsedCaptureMode)
+            ? parsedCaptureMode
+            : CaptureMode.Window;
 
         var relativeX = ParseInt(values, "--relative-x", 120);
         var relativeY = ParseInt(values, "--relative-y", 220);
@@ -80,18 +101,32 @@ internal sealed record OcrProbeOptions(
         var keywords = values.TryGetValue("--keywords", out var configuredKeywords)
             ? configuredKeywords.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : Array.Empty<string>();
+        var stateRules = CreateDefaultStateRules();
 
         return new OcrProbeOptions(
             Path.GetFullPath(processPath),
             processName,
             Path.GetFullPath(outputMarkdownPath),
+            Path.GetFullPath(outputJsonPath),
             Path.GetFullPath(captureImagePath),
+            captureMode,
             languageTag,
             relativeX,
             relativeY,
             regionWidth,
             regionHeight,
-            keywords);
+            keywords,
+            stateRules);
+    }
+
+    private static IReadOnlyList<StateRule> CreateDefaultStateRules()
+    {
+        return
+        [
+            new StateRule("Windows 已关机", ["Windows", "已关机"]),
+            new StateRule("Windows 关机中", ["Windows", "关机中"]),
+            new StateRule("Windows 运行中", ["Windows", "运行中"]),
+        ];
     }
 
     private static int ParseInt(IReadOnlyDictionary<string, string> values, string key, int fallback)
@@ -138,15 +173,75 @@ internal static class OcrReportBuilder
         }
 
         var captureRegion = Win32Capture.ResolveCaptureRegion(window.ClientBounds, options.RelativeX, options.RelativeY, options.RegionWidth, options.RegionHeight);
-        using var bitmap = Win32Capture.CaptureRegion(captureRegion);
+        using var bitmap = Win32Capture.CaptureRegion(window, captureRegion, options.CaptureMode);
         var recognized = await RecognizeAsync(bitmap, options.LanguageTag);
+        var normalizedRecognizedText = NormalizeForKeywordMatch(recognized.Text);
         var matchedKeywords = options.Keywords
-            .Where(keyword => recognized.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            .Where(keyword => normalizedRecognizedText.Contains(NormalizeForKeywordMatch(keyword), StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var anyKeywordMatched = matchedKeywords.Count > 0;
+        var allKeywordsMatched = options.Keywords.Count == 0 || matchedKeywords.Count == options.Keywords.Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        var detectedState = DetectState(options.StateRules, normalizedRecognizedText);
 
-        var markdown = BuildMarkdown(options, selectedProcess, window, captureRegion, recognized, matchedKeywords);
-        return new OcrReport(options.OutputMarkdownPath, options.CaptureImagePath, selectedProcess, bitmap.Clone(new Rectangle(0, 0, bitmap.Width, bitmap.Height), bitmap.PixelFormat), markdown, recognized.Text, matchedKeywords);
+        var markdown = BuildMarkdown(options, selectedProcess, window, captureRegion, recognized, matchedKeywords, normalizedRecognizedText, anyKeywordMatched, allKeywordsMatched, detectedState);
+        var jsonSummary = new OcrJsonSummary(
+            DateTimeOffset.Now,
+            options.ProcessPath,
+            selectedProcess.ProcessId,
+            selectedProcess.MainWindowTitle,
+            ToHandleHex(selectedProcess.MainWindowHandle),
+            options.LanguageTag,
+            new OcrWindowSummary(window.ClassName, window.IsVisible, window.IsMinimized, window.WindowBounds, window.ClientBounds),
+            new OcrCaptureSummary(options.CaptureMode, options.RelativeX, options.RelativeY, options.RegionWidth, options.RegionHeight, captureRegion.AbsoluteBounds),
+            recognized.Text,
+            normalizedRecognizedText,
+            matchedKeywords,
+            anyKeywordMatched,
+            allKeywordsMatched,
+            detectedState,
+            options.StateRules,
+            recognized.Lines);
+
+        return new OcrReport(options.OutputMarkdownPath, options.OutputJsonPath, options.CaptureImagePath, selectedProcess, bitmap.Clone(new Rectangle(0, 0, bitmap.Width, bitmap.Height), bitmap.PixelFormat), markdown, recognized.Text, matchedKeywords, anyKeywordMatched, allKeywordsMatched, detectedState, jsonSummary);
+    }
+
+    private static string? DetectState(IReadOnlyList<StateRule> stateRules, string normalizedRecognizedText)
+    {
+        foreach (var stateRule in stateRules)
+        {
+            var allTermsPresent = stateRule.RequiredTerms
+                .Select(NormalizeForKeywordMatch)
+                .All(term => normalizedRecognizedText.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+            if (allTermsPresent)
+            {
+                return stateRule.Name;
+            }
+        }
+
+        return null;
+    }
+
+    private static string NormalizeForKeywordMatch(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            if (char.IsWhiteSpace(character))
+            {
+                continue;
+            }
+
+            builder.Append(character);
+        }
+
+        return builder.ToString();
     }
 
     private static async Task<OcrRecognitionSnapshot> RecognizeAsync(Bitmap bitmap, string languageTag)
@@ -227,7 +322,11 @@ internal static class OcrReportBuilder
         WindowInfo window,
         CaptureRegion captureRegion,
         OcrRecognitionSnapshot recognition,
-        IReadOnlyList<string> matchedKeywords)
+        IReadOnlyList<string> matchedKeywords,
+        string normalizedRecognizedText,
+        bool anyKeywordMatched,
+        bool allKeywordsMatched,
+        string? detectedState)
     {
         var builder = new StringBuilder();
         builder.AppendLine("# Ecloud OCR Probe");
@@ -238,6 +337,7 @@ internal static class OcrReportBuilder
         builder.AppendLine($"- Selected main window title: `{Escape(selectedProcess.MainWindowTitle)}`");
         builder.AppendLine($"- Selected main window handle: `{ToHandleHex(selectedProcess.MainWindowHandle)}`");
         builder.AppendLine($"- OCR language: `{options.LanguageTag}`");
+        builder.AppendLine($"- Capture mode: `{options.CaptureMode}`");
         builder.AppendLine($"- Capture image: `{options.CaptureImagePath}`");
         builder.AppendLine();
         builder.AppendLine("## Window Info");
@@ -260,11 +360,26 @@ internal static class OcrReportBuilder
         builder.AppendLine(string.IsNullOrWhiteSpace(recognition.Text) ? "<empty>" : recognition.Text.TrimEnd());
         builder.AppendLine("```");
         builder.AppendLine();
+        builder.AppendLine("Normalized OCR text:");
+        builder.AppendLine("```text");
+        builder.AppendLine(string.IsNullOrWhiteSpace(normalizedRecognizedText) ? "<empty>" : normalizedRecognizedText);
+        builder.AppendLine("```");
+        builder.AppendLine();
         builder.AppendLine("## Keyword Match");
         builder.AppendLine();
         builder.AppendLine($"- Configured keywords: `{string.Join(", ", options.Keywords)}`");
         builder.AppendLine($"- Matched keywords: `{(matchedKeywords.Count == 0 ? "<none>" : string.Join(", ", matchedKeywords))}`");
-        builder.AppendLine($"- Page hit: `{(matchedKeywords.Count > 0)}`");
+        builder.AppendLine($"- Any keyword matched: `{anyKeywordMatched}`");
+        builder.AppendLine($"- All keywords matched: `{allKeywordsMatched}`");
+        builder.AppendLine($"- Page hit by custom keywords: `{allKeywordsMatched}`");
+        builder.AppendLine($"- Detected state: `{detectedState ?? "<none>"}`");
+        builder.AppendLine($"- State hit: `{(detectedState is not null)}`");
+        builder.AppendLine();
+        builder.AppendLine("Configured states:");
+        foreach (var stateRule in options.StateRules)
+        {
+            builder.AppendLine($"- `{stateRule.Name}` requires `{string.Join(" + ", stateRule.RequiredTerms)}`");
+        }
         builder.AppendLine();
         builder.AppendLine("## OCR Lines");
         builder.AppendLine();
@@ -309,12 +424,58 @@ internal static class OcrReportBuilder
 
 internal sealed record OcrReport(
     string OutputMarkdownPath,
+    string OutputJsonPath,
     string CaptureImagePath,
     ProcessSnapshot SelectedProcess,
     Bitmap CapturedBitmap,
     string Markdown,
     string RecognizedText,
-    IReadOnlyList<string> MatchedKeywords);
+    IReadOnlyList<string> MatchedKeywords,
+    bool AnyKeywordMatched,
+    bool AllKeywordsMatched,
+    string? DetectedState,
+    OcrJsonSummary JsonSummary);
+
+internal sealed record StateRule(string Name, IReadOnlyList<string> RequiredTerms);
+
+internal sealed record OcrJsonSummary(
+    DateTimeOffset CapturedAt,
+    string TargetProcessPath,
+    int SelectedProcessId,
+    string SelectedMainWindowTitle,
+    string SelectedMainWindowHandle,
+    string OcrLanguage,
+    OcrWindowSummary Window,
+    OcrCaptureSummary Capture,
+    string RecognizedText,
+    string NormalizedRecognizedText,
+    IReadOnlyList<string> MatchedKeywords,
+    bool AnyKeywordMatched,
+    bool AllKeywordsMatched,
+    string? DetectedState,
+    IReadOnlyList<StateRule> ConfiguredStates,
+    IReadOnlyList<OcrLineSnapshot> Lines);
+
+internal sealed record OcrWindowSummary(
+    string ClassName,
+    bool IsVisible,
+    bool IsMinimized,
+    Int32Rect WindowBounds,
+    Int32Rect ClientBounds);
+
+internal sealed record OcrCaptureSummary(
+    CaptureMode CaptureMode,
+    int RelativeX,
+    int RelativeY,
+    int Width,
+    int Height,
+    Int32Rect AbsoluteBounds);
+
+internal enum CaptureMode
+{
+    Screen,
+    Window,
+}
 
 internal sealed record OcrRecognitionSnapshot(string Text, IReadOnlyList<OcrLineSnapshot> Lines);
 
@@ -358,7 +519,7 @@ internal sealed record Int32Rect(int X, int Y, int Width, int Height);
 
 internal sealed record WindowInfo(long Handle, string ClassName, bool IsVisible, bool IsMinimized, Int32Rect WindowBounds, Int32Rect ClientBounds);
 
-internal sealed record CaptureRegion(Int32Rect AbsoluteBounds);
+internal sealed record CaptureRegion(Int32Rect AbsoluteBounds, Int32Rect RelativeBounds);
 
 internal static class Win32Capture
 {
@@ -405,10 +566,71 @@ internal static class Win32Capture
             throw new InvalidOperationException("The OCR capture region is outside the selected window client bounds.");
         }
 
-        return new CaptureRegion(new Int32Rect(absoluteX, absoluteY, width, height));
+        return new CaptureRegion(
+            new Int32Rect(absoluteX, absoluteY, width, height),
+            new Int32Rect(relativeX, relativeY, width, height));
     }
 
-    public static Bitmap CaptureRegion(CaptureRegion region)
+    public static Bitmap CaptureRegion(WindowInfo window, CaptureRegion region, CaptureMode captureMode)
+    {
+        if (captureMode == CaptureMode.Window)
+        {
+            return CaptureWindowRegion(window, region);
+        }
+
+        return CaptureScreenRegion(region);
+    }
+
+    private static Bitmap CaptureWindowRegion(WindowInfo window, CaptureRegion region)
+    {
+        using var clientBitmap = CaptureClientBitmap(window);
+        var relative = region.RelativeBounds;
+        var croppedBitmap = new Bitmap(relative.Width, relative.Height, PixelFormat.Format32bppArgb);
+        using var graphics = Graphics.FromImage(croppedBitmap);
+        graphics.DrawImage(
+            clientBitmap,
+            new Rectangle(0, 0, relative.Width, relative.Height),
+            new Rectangle(relative.X, relative.Y, relative.Width, relative.Height),
+            GraphicsUnit.Pixel);
+
+        return croppedBitmap;
+    }
+
+    private static Bitmap CaptureClientBitmap(WindowInfo window)
+    {
+        var windowBitmap = new Bitmap(window.WindowBounds.Width, window.WindowBounds.Height, PixelFormat.Format32bppArgb);
+        using (var graphics = Graphics.FromImage(windowBitmap))
+        {
+            var hdc = graphics.GetHdc();
+            try
+            {
+                if (!PrintWindow(new IntPtr(window.Handle), hdc, PrintWindowFlags.RenderFullContent))
+                {
+                    graphics.ReleaseHdc(hdc);
+                    windowBitmap.Dispose();
+                    return CaptureScreenRegion(new CaptureRegion(window.ClientBounds, new Int32Rect(0, 0, window.ClientBounds.Width, window.ClientBounds.Height)));
+                }
+            }
+            finally
+            {
+                graphics.ReleaseHdc(hdc);
+            }
+        }
+
+        var offsetX = window.ClientBounds.X - window.WindowBounds.X;
+        var offsetY = window.ClientBounds.Y - window.WindowBounds.Y;
+        var clientBitmap = new Bitmap(window.ClientBounds.Width, window.ClientBounds.Height, PixelFormat.Format32bppArgb);
+        using var clientGraphics = Graphics.FromImage(clientBitmap);
+        clientGraphics.DrawImage(
+            windowBitmap,
+            new Rectangle(0, 0, clientBitmap.Width, clientBitmap.Height),
+            new Rectangle(offsetX, offsetY, clientBitmap.Width, clientBitmap.Height),
+            GraphicsUnit.Pixel);
+        windowBitmap.Dispose();
+        return clientBitmap;
+    }
+
+    private static Bitmap CaptureScreenRegion(CaptureRegion region)
     {
         var bitmap = new Bitmap(region.AbsoluteBounds.Width, region.AbsoluteBounds.Height, PixelFormat.Format32bppArgb);
         using var graphics = Graphics.FromImage(bitmap);
@@ -454,6 +676,16 @@ internal static class Win32Capture
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr handle);
 
+    [DllImport("user32.dll")]
+    private static extern bool PrintWindow(IntPtr handle, IntPtr deviceContext, PrintWindowFlags flags);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(IntPtr handle, StringBuilder className, int maxCount);
+
+    [Flags]
+    private enum PrintWindowFlags : uint
+    {
+        None = 0x0,
+        RenderFullContent = 0x2,
+    }
 }

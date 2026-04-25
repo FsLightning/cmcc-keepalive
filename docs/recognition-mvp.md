@@ -23,7 +23,7 @@ Each polling cycle follows the same order:
 
 For one-off HWND inspection and sample collection, use `src/WindowInspector`. It does not classify session state; it only dumps process candidates, top-level windows, and descendant HWND elements to Markdown.
 
-For experimental fixed-region page detection, use `src/OcrProbe`. It does not alter the GuardService runtime flow; it captures a configured client-area region, runs OCR, and reports keyword matches.
+For experimental fixed-region page detection, use `src/OcrProbe`. It does not alter the GuardService runtime flow; it captures a configured client-area region, runs OCR, reports keyword matches, and can classify the observed page region into `Windows 已关机`, `Windows 关机中`, or `Windows 运行中` when the OCR text is sufficient.
 
 ## Session states
 
@@ -85,4 +85,4 @@ The `Guard` section in `appsettings.json` controls the MVP:
 - Observe a client window that does not match the rules and verify `ClientVisibleButUnknown`.
 - Review the structured log payload before tightening any recognition rule.
 - Run `WindowInspector` and confirm the exported Markdown sample reflects the current top-level and descendant HWND tree without using OCR.
-- Run `OcrProbe` on a restored client window and confirm the exported Markdown sample includes recognized Chinese text and keyword-match results for the target region.
+- Run `OcrProbe` on a restored client window and confirm the exported Markdown and JSON samples include recognized Chinese text, keyword-match results, and the derived three-state OCR classification for the target region.

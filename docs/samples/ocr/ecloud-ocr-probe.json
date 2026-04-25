@@ -1,0 +1,67 @@
+{
+  "capturedAt": "2026-04-25T23:37:49.4602374+08:00",
+  "targetProcessPath": "C:\\Program Files (x86)\\Ecloud\\CloudComputer\\Ecloud Cloud Computer Application.exe",
+  "selectedProcessId": 12124,
+  "selectedMainWindowTitle": "\u79FB\u52A8\u4E91\u7535\u8111",
+  "selectedMainWindowHandle": "0x30494",
+  "ocrLanguage": "zh-CN",
+  "window": {
+    "className": "Chrome_WidgetWin_0",
+    "isVisible": true,
+    "isMinimized": false,
+    "windowBounds": {
+      "x": -2,
+      "y": 6,
+      "width": 2048,
+      "height": 1114
+    },
+    "clientBounds": {
+      "x": 5,
+      "y": 37,
+      "width": 2033,
+      "height": 1076
+    }
+  },
+  "capture": {
+    "relativeX": 120,
+    "relativeY": 220,
+    "width": 760,
+    "height": 520,
+    "absoluteBounds": {
+      "x": 125,
+      "y": 257,
+      "width": 760,
+      "height": 520
+    }
+  },
+  "recognizedText": "",
+  "normalizedRecognizedText": "",
+  "matchedKeywords": [],
+  "anyKeywordMatched": false,
+  "allKeywordsMatched": true,
+  "detectedState": null,
+  "configuredStates": [
+    {
+      "name": "Windows \u5DF2\u5173\u673A",
+      "requiredTerms": [
+        "Windows",
+        "\u5DF2\u5173\u673A"
+      ]
+    },
+    {
+      "name": "Windows \u5173\u673A\u4E2D",
+      "requiredTerms": [
+        "Windows",
+        "\u5173\u673A\u4E2D"
+      ]
+    },
+    {
+      "name": "Windows \u8FD0\u884C\u4E2D",
+      "requiredTerms": [
+        "Windows",
+        "\u8FD0\u884C\u4E2D"
+      ]
+    }
+  ],
+  "lines": []
+}
