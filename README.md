@@ -15,7 +15,7 @@ Included:
 Excluded:
 
 - Webhook notifications.
-- OCR or image recognition.
+- OCR or image recognition in the main GuardService flow.
 - Auto-recovery or auto-restart logic.
 - Foreground activation or input simulation.
 - Complex abnormal-state detection.
@@ -23,7 +23,11 @@ Excluded:
 ## Project layout
 
 - `src/GuardService`: Worker Service implementation.
+- `src/WindowInspector`: read-only Win32 window tree inspector for the target client.
+- `src/OcrProbe`: experimental fixed-region OCR probe for page detection by Chinese keywords.
 - `docs/recognition-mvp.md`: architecture, state definitions, and configuration notes.
+- `docs/samples/ecloud-window-elements.md`: latest captured window-element snapshot from the target client.
+- `docs/samples/ocr`: OCR probe samples and captured region images.
 
 ## Run locally
 
@@ -31,11 +35,23 @@ Excluded:
 dotnet run --project .\src\GuardService\GuardService.csproj
 ```
 
+```powershell
+dotnet run --project .\src\WindowInspector\WindowInspector.csproj
+```
+
+```powershell
+dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --keywords 页面关键词1,页面关键词2
+```
+
 ## Configuration
 
 Edit `src/GuardService/appsettings.json` and set the target process name, optional executable path, and window keyword rules.
 
 The current confirmed target process for this repository is `Ecloud Cloud Computer Application.exe`.
+
+The window-inspector tool defaults to the same target executable path and exports a Markdown snapshot under `docs/samples`.
+
+The OCR probe also defaults to the same target executable path. It captures a fixed client-area region, runs Chinese OCR, and records whether any configured keywords are present.
 
 ## Collaboration notes
 

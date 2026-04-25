@@ -8,7 +8,7 @@ The first implementation focuses on technical validation only. It should answer 
 - Can the target top-level window be identified?
 - Does the observed window look like a normal ready desktop?
 
-The MVP must not perform recovery, notifications, OCR, or any input automation.
+The main GuardService MVP must not perform recovery, notifications, OCR, or any input automation.
 
 The currently confirmed target process is `Ecloud Cloud Computer Application.exe`.
 
@@ -20,6 +20,10 @@ Each polling cycle follows the same order:
 2. Probe the target window for the selected process.
 3. Classify the current session state.
 4. Log a readable summary and a structured payload.
+
+For one-off HWND inspection and sample collection, use `src/WindowInspector`. It does not classify session state; it only dumps process candidates, top-level windows, and descendant HWND elements to Markdown.
+
+For experimental fixed-region page detection, use `src/OcrProbe`. It does not alter the GuardService runtime flow; it captures a configured client-area region, runs OCR, and reports keyword matches.
 
 ## Session states
 
@@ -80,3 +84,5 @@ The `Guard` section in `appsettings.json` controls the MVP:
 - Observe a normal ready desktop and verify `DesktopReady`.
 - Observe a client window that does not match the rules and verify `ClientVisibleButUnknown`.
 - Review the structured log payload before tightening any recognition rule.
+- Run `WindowInspector` and confirm the exported Markdown sample reflects the current top-level and descendant HWND tree without using OCR.
+- Run `OcrProbe` on a restored client window and confirm the exported Markdown sample includes recognized Chinese text and keyword-match results for the target region.
