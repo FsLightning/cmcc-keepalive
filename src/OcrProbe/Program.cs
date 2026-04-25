@@ -167,9 +167,9 @@ internal static class OcrReportBuilder
             throw new InvalidOperationException("The selected main window is not visible. OCR probe requires a visible window.");
         }
 
-        if (window.IsMinimized)
+        if (window.IsMinimized && options.CaptureMode == CaptureMode.Screen)
         {
-            throw new InvalidOperationException("The selected main window is minimized. Restore it before running the OCR probe.");
+            throw new InvalidOperationException("The selected main window is minimized. Restore it before running the OCR probe in screen capture mode.");
         }
 
         var captureRegion = Win32Capture.ResolveCaptureRegion(window.ClientBounds, options.RelativeX, options.RelativeY, options.RegionWidth, options.RegionHeight);
@@ -599,22 +599,24 @@ internal static class Win32Capture
     private static Bitmap CaptureClientBitmap(WindowInfo window)
     {
         var windowBitmap = new Bitmap(window.WindowBounds.Width, window.WindowBounds.Height, PixelFormat.Format32bppArgb);
+        var printed = false;
         using (var graphics = Graphics.FromImage(windowBitmap))
         {
             var hdc = graphics.GetHdc();
             try
             {
-                if (!PrintWindow(new IntPtr(window.Handle), hdc, PrintWindowFlags.RenderFullContent))
-                {
-                    graphics.ReleaseHdc(hdc);
-                    windowBitmap.Dispose();
-                    return CaptureScreenRegion(new CaptureRegion(window.ClientBounds, new Int32Rect(0, 0, window.ClientBounds.Width, window.ClientBounds.Height)));
-                }
+                printed = PrintWindow(new IntPtr(window.Handle), hdc, PrintWindowFlags.RenderFullContent);
             }
             finally
             {
                 graphics.ReleaseHdc(hdc);
             }
+        }
+
+        if (!printed)
+        {
+            windowBitmap.Dispose();
+            return CaptureScreenRegion(new CaptureRegion(window.ClientBounds, new Int32Rect(0, 0, window.ClientBounds.Width, window.ClientBounds.Height)));
         }
 
         var offsetX = window.ClientBounds.X - window.WindowBounds.X;

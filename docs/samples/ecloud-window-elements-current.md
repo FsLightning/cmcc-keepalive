@@ -1,6 +1,6 @@
 # Ecloud Window Element Snapshot
 
-- Captured at: 2026-04-25 23:30:26 +08:00
+- Captured at: 2026-04-25 23:42:04 +08:00
 - Target process path: `C:\Program Files (x86)\Ecloud\CloudComputer\Ecloud Cloud Computer Application.exe`
 - Target process name: `Ecloud Cloud Computer Application`
 - Selected PID: `12124`
@@ -24,14 +24,14 @@
 
 | Handle | Class | Title | Visible | Minimized | Enabled | Bounds | Area |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `0x2603AE` | `Chrome_WidgetWin_0` | `` | False | False | True | `(12, 13) - (1241, 828) 1229x815` | 1001635 |
-| `0x8052A` | `Chrome_WidgetWin_0` | `settingWindow` | False | False | True | `(0, 0) - (2560, 1600) 2560x1600` | 4096000 |
-| `0x30494` | `Chrome_WidgetWin_0` | `移动云电脑` | True | False | True | `(55, 116) - (2103, 1229) 2048x1113` | 2279424 |
+| `0x2603AE` | `Chrome_WidgetWin_0` | `` | False | False | True | `(10, 10) - (993, 662) 983x652` | 640916 |
+| `0x8052A` | `Chrome_WidgetWin_0` | `settingWindow` | False | False | True | `(0, 0) - (2048, 1280) 2048x1280` | 2621440 |
 | `0xA0478` | `Chrome_WidgetWin_0` | `` | False | False | False | `(0, 0) - (0, 0) 0x0` | 0 |
 | `0x1104A4` | `Electron_NotifyIconHostWindow` | `` | False | False | True | `(0, 0) - (0, 0) 0x0` | 0 |
-| `0x7047A` | `Chrome_SystemMessageWindow` | `` | False | False | True | `(0, 0) - (170, 47) 170x47` | 7990 |
-| `0x80480` | `Chrome_WidgetWin_0` | `` | False | False | True | `(352, 352) - (2272, 1486) 1920x1134` | 2177280 |
+| `0x7047A` | `Chrome_SystemMessageWindow` | `` | False | False | True | `(0, 0) - (136, 38) 136x38` | 5168 |
+| `0x80480` | `Chrome_WidgetWin_0` | `` | False | False | True | `(282, 282) - (1818, 1189) 1536x907` | 1393152 |
 | `0x50492` | `Base_PowerMessageWindow` | `` | False | False | True | `(0, 0) - (0, 0) 0x0` | 0 |
+| `0x30494` | `Chrome_WidgetWin_0` | `移动云电脑` | True | True | True | `(-25600, -25600) - (-25472, -25578) 128x22` | 2816 |
 | `0x70524` | `MSCTFIME UI` | `MSCTFIME UI` | False | False | False | `(0, 0) - (0, 0) 0x0` | 0 |
 | `0x15001C` | `IME` | `Default IME` | False | False | False | `(0, 0) - (0, 0) 0x0` | 0 |
 
@@ -41,16 +41,16 @@
 - Class: `Chrome_WidgetWin_0`
 - Title: `移动云电脑`
 - Visible: `True`
-- Minimized: `False`
+- Minimized: `True`
 - Enabled: `True`
-- Bounds: `(55, 116) - (2103, 1229) 2048x1113`
+- Bounds: `(-25600, -25600) - (-25472, -25578) 128x22`
 - Child/descendant count: `1`
 
 ## Descendant Window Elements
 
 | Depth | Handle | Parent | Class | Title | Visible | Enabled | Bounds | Control ID |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `0x70526` | `0x30494` | `Chrome_RenderWidgetHostHWND` | `Chrome Legacy Window` | False | True | `(63, 147) - (2095, 1221) 2032x1074` | 495888 |
+| 1 | `0x70526` | `0x30494` | `Chrome_RenderWidgetHostHWND` | `Chrome Legacy Window` | False | True | `(-25600, -25600) - (-23976, -24652) 1624x948` | 495888 |
 
 ## Notes
 
