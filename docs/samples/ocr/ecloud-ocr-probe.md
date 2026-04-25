@@ -1,6 +1,6 @@
 # Ecloud OCR 探测报告
 
-- 采集时间: 2026-04-25 23:54:28 +08:00
+- 采集时间: 2026-04-26 00:01:45 +08:00
 - 目标进程路径: `C:\Program Files (x86)\Ecloud\CloudComputer\Ecloud Cloud Computer Application.exe`
 - 目标进程 PID: `12124`
 - 目标主窗口标题: `移动云电脑`
@@ -62,16 +62,10 @@
 
 | 句柄 | 来源 | 标题 | 类名 | 可见 | 最小化 | 区域可用 | 抓图成功 | 识别状态 | 文本长度 | 结果 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `0x70526` | `RenderHost` | `Chrome Legacy Window` | `Chrome_RenderWidgetHostHWND` | False | False | True | True | `<none>` | 0 | `抓图与 OCR 成功。` |
+| `0x70526` | `RenderHost` | `Chrome Legacy Window` | `Chrome_RenderWidgetHostHWND` | False | False | True | True | `<none>` | 0 | `抓图与 OCR 成功，但目标区域没有识别到文本。` |
 | `0x30494` | `MainWindow` | `移动云电脑` | `Chrome_WidgetWin_0` | True | True | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
-| `0x8052A` | `TopLevelWindow` | `settingWindow` | `Chrome_WidgetWin_0` | False | False | True | True | `<none>` | 0 | `抓图与 OCR 成功。` |
 | `0x80480` | `TopLevelWindow` | `` | `Chrome_WidgetWin_0` | False | False | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
 | `0x2603AE` | `TopLevelWindow` | `` | `Chrome_WidgetWin_0` | False | False | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
-| `0x7047A` | `TopLevelWindow` | `` | `Chrome_SystemMessageWindow` | False | False | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
-| `0x1104A4` | `TopLevelWindow` | `` | `Electron_NotifyIconHostWindow` | False | False | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
-| `0x50492` | `TopLevelWindow` | `` | `Base_PowerMessageWindow` | False | False | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
-| `0x70524` | `TopLevelWindow` | `MSCTFIME UI` | `MSCTFIME UI` | False | False | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
-| `0x15001C` | `TopLevelWindow` | `Default IME` | `IME` | False | False | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
 | `0xA0478` | `TopLevelWindow` | `` | `Chrome_WidgetWin_0` | False | False | False | False | `<none>` | 0 | `候选窗口尺寸不足，无法容纳默认状态区域。` |
 
 ## 说明

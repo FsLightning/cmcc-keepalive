@@ -1,35 +1,37 @@
 # cmcc-keepalive
 
-This repository hosts a Windows recognition MVP for a local guard process. Version 1 is intentionally narrow: it only detects the target process, inspects the target window, classifies a small set of read-only session states, and writes structured logs for sample collection.
+这个仓库用于沉淀一个运行在 Windows 11 宿主机上的只读识别 MVP。当前阶段刻意收窄范围，只做目标进程识别、目标窗口识别、固定区域 OCR 状态判断，以及样本输出，方便后续持续收集规则和验证结果。
 
-## Version 1 scope
+## 当前范围
 
-Included:
+已包含：
 
-- .NET 8 Worker Service skeleton.
-- Process detection by process name and optional executable path.
-- Top-level window detection with HWND, title, class name, visibility, minimized state, and bounds.
-- Session classification into `DesktopReady`, `ClientVisibleButUnknown`, `ProcessOnly`, and `NotRunning`.
-- Structured logging and readable summaries for each polling cycle.
+- .NET 8 Worker Service 骨架。
+- 基于进程名和可选可执行路径的进程识别。
+- 基于 Win32 的顶层窗口识别与窗口树采样。
+- 只读会话状态分类：`DesktopReady`、`ClientVisibleButUnknown`、`ProcessOnly`、`NotRunning`。
+- 面向固定区域的 OCR 探针，用于识别中文关键词和页面三态。
+- Markdown、JSON、PNG 三类样本输出。
 
-Excluded:
+暂不包含：
 
-- Webhook notifications.
-- OCR or image recognition in the main GuardService flow.
-- Auto-recovery or auto-restart logic.
-- Foreground activation or input simulation.
-- Complex abnormal-state detection.
+- Webhook 通知。
+- GuardService 主流程中的 OCR 或图像识别。
+- 自动恢复、自动重连或自动拉起。
+- 前台激活、输入模拟或主动点击。
+- 复杂异常状态诊断。
 
-## Project layout
+## 项目结构
 
-- `src/GuardService`: Worker Service implementation.
-- `src/WindowInspector`: read-only Win32 window tree inspector for the target client.
-- `src/OcrProbe`: experimental fixed-region OCR probe for page detection by Chinese keywords.
-- `docs/recognition-mvp.md`: architecture, state definitions, and configuration notes.
-- `docs/samples/ecloud-window-elements.md`: latest captured window-element snapshot from the target client.
-- `docs/samples/ocr`: OCR probe samples and captured region images.
+- `src/GuardService`：识别 MVP 的 Worker Service。
+- `src/WindowInspector`：目标客户端的只读 Win32 窗口树采样工具。
+- `src/OcrProbe`：固定区域 OCR 探针，用于按中文关键词识别页面状态。
+- `docs/recognition-mvp.md`：识别 MVP 架构、状态定义和配置说明。
+- `docs/ocr-probe.md`：OcrProbe 默认区域、窗口模式、JSON 结构和限制说明。
+- `docs/samples/ecloud-window-elements.md`：目标客户端窗口树样本。
+- `docs/samples/ocr`：OCR 探针输出的 Markdown、JSON、PNG 样本。
 
-## Run locally
+## 本地运行
 
 ```powershell
 dotnet run --project .\src\GuardService\GuardService.csproj
@@ -40,23 +42,27 @@ dotnet run --project .\src\WindowInspector\WindowInspector.csproj
 ```
 
 ```powershell
-dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --keywords 页面关键词1,页面关键词2
+dotnet run --project .\src\OcrProbe\OcrProbe.csproj
 ```
 
-The OCR probe can also produce a read-only tri-state result for the observed page region: `Windows 已关机`, `Windows 关机中`, or `Windows 运行中`.
+```powershell
+dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --keywords Windows,运行中
+```
 
-## Configuration
+OcrProbe 当前会在只读前提下输出三态页面识别结果：`Windows 已关机`、`Windows 关机中`、`Windows 运行中`。
 
-Edit `src/GuardService/appsettings.json` and set the target process name, optional executable path, and window keyword rules.
+## 当前默认配置
 
-The current confirmed target process for this repository is `Ecloud Cloud Computer Application.exe`.
+`GuardService` 的主配置位于 `src/GuardService/appsettings.json`，用于设置目标进程名、可执行路径、窗口关键词和识别阈值。
 
-The window-inspector tool defaults to the same target executable path and exports a Markdown snapshot under `docs/samples`.
+当前仓库已经确认的目标进程为 `Ecloud Cloud Computer Application.exe`，默认路径为 `C:\Program Files (x86)\Ecloud\CloudComputer\Ecloud Cloud Computer Application.exe`。
 
-The OCR probe also defaults to the same target executable path. It captures a fixed client-area region, runs Chinese OCR, records keyword matches, derives the current Windows state when possible, and writes both Markdown and JSON outputs under `docs/samples/ocr`.
+`WindowInspector` 默认使用同一目标路径，并把窗口树样本导出到 `docs/samples`。
 
-## Collaboration notes
+`OcrProbe` 也默认使用同一目标路径，默认采用 `window` 模式，并把状态检测区域固化为客户端区域内的 `(120, 220) 1200x700`。它会输出 OCR 文本、关键词匹配、三态状态判断，以及候选窗口尝试明细。更完整说明见 `docs/ocr-probe.md`。
 
-- Early-stage changes can be committed directly to `main`.
-- PRs should only be introduced when the user explicitly requests them.
-- Keep documentation updated as the recognition rules evolve so other AI agents can continue from the same state.
+## 协作约束
+
+- 当前处于早期阶段，可以直接提交到 `main`。
+- 只有在用户明确要求时才引入 PR 流程。
+- 识别规则、样本路径和已验证限制需要持续写回仓库文档，方便后续其他 AI 继续接手。

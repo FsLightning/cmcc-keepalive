@@ -204,6 +204,9 @@ internal static class OcrReportBuilder
             var recognizedText = await RecognizeAsync(bitmap, options.LanguageTag);
             var customKeywordDetection = EvaluateCustomKeywords(options.Keywords, recognizedText.Normalized);
             var stateDetection = EvaluateStates(options.StateRules, recognizedText.Normalized);
+            var attemptResult = string.IsNullOrWhiteSpace(recognizedText.Normalized)
+                ? "抓图与 OCR 成功，但目标区域没有识别到文本。"
+                : "抓图与 OCR 成功。";
             var attempt = new OcrCaptureAttempt(
                 candidate,
                 captureRegion,
@@ -223,7 +226,7 @@ internal static class OcrReportBuilder
                 true,
                 recognizedText.Normalized.Length,
                 stateDetection.DetectedState,
-                "抓图与 OCR 成功。"));
+                attemptResult));
 
             if (bestAttempt is null || attempt.Score > bestAttempt.Score)
             {
@@ -574,6 +577,11 @@ internal static class CaptureWindowSelector
                 continue;
             }
 
+            if (IsIgnoredWindow(window))
+            {
+                continue;
+            }
+
             var fitsRequestedRegion = window.ClientBounds.Width >= options.RelativeX + options.RegionWidth &&
                 window.ClientBounds.Height >= options.RelativeY + options.RegionHeight;
             var scoreReasons = new List<string>();
@@ -674,6 +682,20 @@ internal static class CaptureWindowSelector
 
             seeds[handle] = new CandidateSeed(handle, sourceKind, sourceReason, baseScore);
         }
+    }
+
+    private static bool IsIgnoredWindow(WindowInfo window)
+    {
+        if (window.ClassName.Contains("Electron_NotifyIconHostWindow", StringComparison.OrdinalIgnoreCase) ||
+            window.ClassName.Contains("Base_PowerMessageWindow", StringComparison.OrdinalIgnoreCase) ||
+            window.ClassName.Contains("Chrome_SystemMessageWindow", StringComparison.OrdinalIgnoreCase) ||
+            window.ClassName.Contains("MSCTFIME UI", StringComparison.OrdinalIgnoreCase) ||
+            window.ClassName.Equals("IME", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return window.Title.Contains("settingWindow", StringComparison.OrdinalIgnoreCase);
     }
 }
 
