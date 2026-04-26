@@ -53,7 +53,7 @@ dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --keywords Windows,运行
 
 OcrProbe 当前会在只读前提下输出三态页面识别结果：`Windows 已关机`、`Windows 关机中`、`Windows 运行中`。
 
-OcrProbe 同样默认在 OCR 前执行窗口预处理（恢复普通窗体并调整到目标尺寸），以降低窗口状态波动对识别结果的影响。详细参数说明见 `docs/ocr-probe.md`。
+OcrProbe 默认不强制改变窗口状态，而是优先通过自适应区域策略在当前窗口状态下完成识别；如需固定窗口尺寸再识别，可显式开启 `--normalize-window-layout true`。详细参数说明见 `docs/ocr-probe.md`。
 
 ## 当前默认配置
 

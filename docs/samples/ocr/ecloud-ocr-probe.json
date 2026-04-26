@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "1.1",
-  "capturedAt": "2026-04-26T08:35:47.1951873+08:00",
+  "schemaVersion": "1.2",
+  "capturedAt": "2026-04-26T08:45:19.0552297+08:00",
   "targetProcessPath": "C:\\Program Files (x86)\\Ecloud\\CloudComputer\\Ecloud Cloud Computer Application.exe",
   "process": {
     "processId": 14088,
@@ -12,153 +12,109 @@
   "layoutAdjustment": {
     "requested": true,
     "wasMaximized": false,
-    "wasMinimized": false,
+    "wasMinimized": true,
     "restoredToNormal": true,
     "resizeSucceeded": true,
     "boundsBefore": {
-      "x": 120,
-      "y": 80,
-      "width": 2048,
-      "height": 1113
+      "x": -25600,
+      "y": -25600,
+      "width": 128,
+      "height": 22
     },
     "boundsAfter": {
       "x": 120,
       "y": 80,
-      "width": 2048,
-      "height": 1113
+      "width": 1638,
+      "height": 985
     },
     "message": "OCR \u524D\u5DF2\u5C1D\u8BD5\u6062\u590D\u666E\u901A\u7A97\u4F53\u5E76\u8C03\u6574\u5230\u76EE\u6807\u5206\u8FA8\u7387\u3002"
   },
   "selectedCaptureWindow": {
-    "handleHex": "0x70482",
-    "title": "\u79FB\u52A8\u4E91\u7535\u8111",
-    "className": "Chrome_WidgetWin_0",
-    "sourceKind": "MainWindow",
-    "selectionReason": "\u53EF\u89C1\uFF0C\u672A\u6700\u5C0F\u5316\uFF0C\u53EF\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\uFF0C\u6807\u9898\u547D\u4E2D\u79FB\u52A8\u4E91\u7535\u8111",
+    "handleHex": "0x40494",
+    "title": "Chrome Legacy Window",
+    "className": "Chrome_RenderWidgetHostHWND",
+    "sourceKind": "RenderHost",
+    "selectionReason": "\u53EF\u89C1\uFF0C\u672A\u6700\u5C0F\u5316\uFF0C\u53EF\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\uFF0CRenderHost \u5185\u5BB9\u7A97\u53E3",
     "isVisible": true,
     "isMinimized": false,
     "isEnabled": true,
     "windowBounds": {
-      "x": 120,
-      "y": 80,
-      "width": 2048,
-      "height": 1113
+      "x": 127,
+      "y": 110,
+      "width": 1624,
+      "height": 948
     },
     "clientBounds": {
-      "x": 128,
-      "y": 111,
-      "width": 2032,
-      "height": 1074
+      "x": 127,
+      "y": 110,
+      "width": 1624,
+      "height": 948
     },
-    "selectionScore": 949
+    "selectionScore": 856
   },
   "capture": {
     "captureMode": 1,
+    "strategy": "adaptive-scaled",
     "relativeBounds": {
-      "x": 120,
-      "y": 220,
-      "width": 1200,
-      "height": 700
+      "x": 96,
+      "y": 194,
+      "width": 959,
+      "height": 618
     },
     "absoluteBounds": {
-      "x": 248,
-      "y": 331,
-      "width": 1200,
-      "height": 700
+      "x": 223,
+      "y": 304,
+      "width": 959,
+      "height": 618
     }
   },
   "text": {
-    "original": "8 \u6838 9 Windows \u6211 \u7684 \u7535 \u8111 0 \u529E \u516C \u578B \u300A 0 \u534E \u5317 \uFF0E \u5317 \u4EAC 3 \u81EA \u52A8 \u8FDE \u63A5 \u5DF2 \u5173 \u673A ] 5 GB \u65AD \u5F00",
-    "normalized": "8\u68389Windows\u6211\u7684\u7535\u81110\u529E\u516C\u578B\u300A0\u534E\u5317\uFF0E\u5317\u4EAC3\u81EA\u52A8\u8FDE\u63A5\u5DF2\u5173\u673A]5GB\u65AD\u5F00",
+    "original": "\u6211 \u7684 \u7535 \u8111 0 \u529E \u516C \u578B I \u516C \u4F17 \u7248 0 \u534E \u5317 \uFF0E \u5317 \u4EAC 3 \u81EA \u52A8 \u8FDE \u63A5 Windows \u5DF2 \u5173 \u673A",
+    "normalized": "\u6211\u7684\u7535\u81110\u529E\u516C\u578BI\u516C\u4F17\u72480\u534E\u5317\uFF0E\u5317\u4EAC3\u81EA\u52A8\u8FDE\u63A5Windows\u5DF2\u5173\u673A",
     "lines": [
-      {
-        "text": "8 \u6838",
-        "bounds": {
-          "x": 1036,
-          "y": 306,
-          "width": 27,
-          "height": 15
-        }
-      },
-      {
-        "text": "9",
-        "bounds": {
-          "x": 1036,
-          "y": 406,
-          "width": 22,
-          "height": 22
-        }
-      },
-      {
-        "text": "Windows",
-        "bounds": {
-          "x": 473,
-          "y": 427,
-          "width": 82,
-          "height": 15
-        }
-      },
       {
         "text": "\u6211 \u7684 \u7535 \u8111",
         "bounds": {
-          "x": 732,
-          "y": 236,
-          "width": 82,
-          "height": 20
+          "x": 706,
+          "y": 303,
+          "width": 105,
+          "height": 30
         }
       },
       {
-        "text": "0 \u529E \u516C \u578B \u300A",
+        "text": "0 \u529E \u516C \u578B I \u516C \u4F17 \u7248",
         "bounds": {
-          "x": 748,
-          "y": 285,
-          "width": 76,
-          "height": 16
+          "x": 725,
+          "y": 367,
+          "width": 159,
+          "height": 27
         }
       },
       {
         "text": "0 \u534E \u5317 \uFF0E \u5317 \u4EAC 3",
         "bounds": {
-          "x": 735,
-          "y": 328,
-          "width": 76,
-          "height": 15
+          "x": 705,
+          "y": 422,
+          "width": 101,
+          "height": 21
         }
       },
       {
         "text": "\u81EA \u52A8 \u8FDE \u63A5",
         "bounds": {
-          "x": 741,
-          "y": 405,
-          "width": 60,
-          "height": 15
+          "x": 708,
+          "y": 523,
+          "width": 81,
+          "height": 23
         }
       },
       {
-        "text": "\u5DF2 \u5173 \u673A",
+        "text": "Windows \u5DF2 \u5173 \u673A",
         "bounds": {
-          "x": 578,
-          "y": 426,
-          "width": 54,
-          "height": 17
-        }
-      },
-      {
-        "text": "] 5 GB",
-        "bounds": {
-          "x": 1135,
-          "y": 309,
-          "width": 40,
-          "height": 11
-        }
-      },
-      {
-        "text": "\u65AD \u5F00",
-        "bounds": {
-          "x": 1141,
-          "y": 453,
-          "width": 26,
-          "height": 13
+          "x": 364,
+          "y": 536,
+          "width": 198,
+          "height": 28
         }
       }
     ]
@@ -218,34 +174,205 @@
   },
   "attemptedWindows": [
     {
+      "handleHex": "0x40494",
+      "sourceKind": "RenderHost",
+      "regionStrategy": "initial/fixed",
+      "title": "Chrome Legacy Window",
+      "className": "Chrome_RenderWidgetHostHWND",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial/fixed] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x40494",
+      "sourceKind": "RenderHost",
+      "regionStrategy": "initial/adaptive-scaled",
+      "title": "Chrome Legacy Window",
+      "className": "Chrome_RenderWidgetHostHWND",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial/adaptive-scaled] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x5B0030",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "initial/adaptive-scaled",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial/adaptive-scaled] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x5B0030",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "initial/fit-to-client",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial/fit-to-client] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x2803AE",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "initial/adaptive-scaled",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial/adaptive-scaled] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x2803AE",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "initial/fit-to-client",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial/fit-to-client] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x2604BA",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "initial/adaptive-scaled",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial/adaptive-scaled] \u7A97\u53E3\u6293\u56FE\u5931\u8D25\u3002"
+    },
+    {
+      "handleHex": "0x2604BA",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "initial/fit-to-client",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial/fit-to-client] \u7A97\u53E3\u6293\u56FE\u5931\u8D25\u3002"
+    },
+    {
+      "handleHex": "0x80528",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "initial/\u003Cnone\u003E",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial] \u6CA1\u6709\u53EF\u7528\u4E8E\u5F53\u524D\u7A97\u53E3\u5C3A\u5BF8\u7684\u6355\u83B7\u533A\u57DF\u3002"
+    },
+    {
       "handleHex": "0x70482",
       "sourceKind": "MainWindow",
+      "regionStrategy": "initial/\u003Cnone\u003E",
+      "title": "\u79FB\u52A8\u4E91\u7535\u8111",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": true,
+      "isMinimized": true,
+      "regionFits": false,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[initial] \u6CA1\u6709\u53EF\u7528\u4E8E\u5F53\u524D\u7A97\u53E3\u5C3A\u5BF8\u7684\u6355\u83B7\u533A\u57DF\u3002"
+    },
+    {
+      "handleHex": "0x70482",
+      "sourceKind": "MainWindow",
+      "regionStrategy": "normalized-retry/fixed",
       "title": "\u79FB\u52A8\u4E91\u7535\u8111",
       "className": "Chrome_WidgetWin_0",
       "isVisible": true,
       "isMinimized": false,
       "regionFits": true,
       "captureSucceeded": true,
-      "normalizedTextLength": 39,
-      "detectedState": "Windows \u5DF2\u5173\u673A",
-      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[normalized-retry/fixed] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x70482",
+      "sourceKind": "MainWindow",
+      "regionStrategy": "normalized-retry/adaptive-scaled",
+      "title": "\u79FB\u52A8\u4E91\u7535\u8111",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": true,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[normalized-retry/adaptive-scaled] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
     },
     {
       "handleHex": "0x40494",
       "sourceKind": "RenderHost",
+      "regionStrategy": "normalized-retry/fixed",
       "title": "Chrome Legacy Window",
       "className": "Chrome_RenderWidgetHostHWND",
       "isVisible": true,
       "isMinimized": false,
       "regionFits": true,
       "captureSucceeded": true,
-      "normalizedTextLength": 39,
+      "normalizedTextLength": 33,
       "detectedState": "Windows \u5DF2\u5173\u673A",
-      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
+      "result": "[normalized-retry/fixed] \u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
+    },
+    {
+      "handleHex": "0x40494",
+      "sourceKind": "RenderHost",
+      "regionStrategy": "normalized-retry/adaptive-scaled",
+      "title": "Chrome Legacy Window",
+      "className": "Chrome_RenderWidgetHostHWND",
+      "isVisible": true,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 33,
+      "detectedState": "Windows \u5DF2\u5173\u673A",
+      "result": "[normalized-retry/adaptive-scaled] \u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
     },
     {
       "handleHex": "0x5B0030",
       "sourceKind": "TopLevelWindow",
+      "regionStrategy": "normalized-retry/adaptive-scaled",
       "title": "",
       "className": "Chrome_WidgetWin_0",
       "isVisible": false,
@@ -254,37 +381,82 @@
       "captureSucceeded": true,
       "normalizedTextLength": 0,
       "detectedState": null,
-      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+      "result": "[normalized-retry/adaptive-scaled] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x5B0030",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "normalized-retry/fit-to-client",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[normalized-retry/fit-to-client] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
     },
     {
       "handleHex": "0x2803AE",
       "sourceKind": "TopLevelWindow",
+      "regionStrategy": "normalized-retry/adaptive-scaled",
       "title": "",
       "className": "Chrome_WidgetWin_0",
       "isVisible": false,
       "isMinimized": false,
-      "regionFits": false,
-      "captureSucceeded": false,
+      "regionFits": true,
+      "captureSucceeded": true,
       "normalizedTextLength": 0,
       "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+      "result": "[normalized-retry/adaptive-scaled] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
+    },
+    {
+      "handleHex": "0x2803AE",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "normalized-retry/fit-to-client",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[normalized-retry/fit-to-client] \u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
     },
     {
       "handleHex": "0x2604BA",
       "sourceKind": "TopLevelWindow",
+      "regionStrategy": "normalized-retry/adaptive-scaled",
       "title": "",
       "className": "Chrome_WidgetWin_0",
       "isVisible": false,
       "isMinimized": false,
-      "regionFits": false,
+      "regionFits": true,
       "captureSucceeded": false,
       "normalizedTextLength": 0,
       "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+      "result": "[normalized-retry/adaptive-scaled] \u7A97\u53E3\u6293\u56FE\u5931\u8D25\u3002"
+    },
+    {
+      "handleHex": "0x2604BA",
+      "sourceKind": "TopLevelWindow",
+      "regionStrategy": "normalized-retry/fit-to-client",
+      "title": "",
+      "className": "Chrome_WidgetWin_0",
+      "isVisible": false,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": false,
+      "normalizedTextLength": 0,
+      "detectedState": null,
+      "result": "[normalized-retry/fit-to-client] \u7A97\u53E3\u6293\u56FE\u5931\u8D25\u3002"
     },
     {
       "handleHex": "0x80528",
       "sourceKind": "TopLevelWindow",
+      "regionStrategy": "normalized-retry/\u003Cnone\u003E",
       "title": "",
       "className": "Chrome_WidgetWin_0",
       "isVisible": false,
@@ -293,7 +465,7 @@
       "captureSucceeded": false,
       "normalizedTextLength": 0,
       "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+      "result": "[normalized-retry] \u6CA1\u6709\u53EF\u7528\u4E8E\u5F53\u524D\u7A97\u53E3\u5C3A\u5BF8\u7684\u6355\u83B7\u533A\u57DF\u3002"
     }
   ]
 }

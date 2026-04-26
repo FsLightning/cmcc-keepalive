@@ -56,6 +56,9 @@ internal sealed record OcrProbeOptions(
     int NormalWindowY,
     int NormalWindowWidth,
     int NormalWindowHeight,
+    bool UseAdaptiveRegion,
+    int BaselineClientWidth,
+    int BaselineClientHeight,
     int RelativeX,
     int RelativeY,
     int RegionWidth,
@@ -99,11 +102,14 @@ internal sealed record OcrProbeOptions(
             Enum.TryParse<CaptureMode>(configuredCaptureMode, true, out var parsedCaptureMode)
             ? parsedCaptureMode
             : CaptureMode.Window;
-        var normalizeWindowLayout = ParseBool(values, "--normalize-window-layout", true);
+        var normalizeWindowLayout = ParseBool(values, "--normalize-window-layout", false);
         var normalWindowX = ParseInt(values, "--normal-window-x", 120);
         var normalWindowY = ParseInt(values, "--normal-window-y", 80);
         var normalWindowWidth = ParsePositiveInt(values, "--normal-window-width", 1600);
         var normalWindowHeight = ParsePositiveInt(values, "--normal-window-height", 900);
+        var useAdaptiveRegion = ParseBool(values, "--adaptive-region", true);
+        var baselineClientWidth = ParsePositiveInt(values, "--baseline-client-width", 2032);
+        var baselineClientHeight = ParsePositiveInt(values, "--baseline-client-height", 1074);
 
         return new OcrProbeOptions(
             Path.GetFullPath(processPath),
@@ -118,6 +124,9 @@ internal sealed record OcrProbeOptions(
             normalWindowY,
             normalWindowWidth,
             normalWindowHeight,
+            useAdaptiveRegion,
+            baselineClientWidth,
+            baselineClientHeight,
             ParseInt(values, "--relative-x", 120),
             ParseInt(values, "--relative-y", 220),
             ParseInt(values, "--width", 1200),
@@ -206,87 +215,42 @@ internal static class OcrReportBuilder
             : WindowLayoutAdjustment.NotRequested();
 
         selectedProcess = TryRefreshProcessSnapshot(selectedProcess.ProcessId) ?? selectedProcess;
-        var captureCandidates = CaptureWindowSelector.GetOrderedCandidates(selectedProcess, options);
-        if (captureCandidates.Count == 0)
+        var initialCandidates = CaptureWindowSelector.GetOrderedCandidates(selectedProcess, options);
+        if (initialCandidates.Count == 0)
         {
             throw new InvalidOperationException("未找到可用于 OCR 的窗口候选。请先确认客户端窗口已经创建。");
         }
 
-        OcrCaptureAttempt? bestAttempt = null;
-        var attemptSummaries = new List<CaptureAttemptSummary>();
+        var initialEvaluation = await EvaluateCaptureCandidatesAsync(initialCandidates, options, "initial");
+        OcrCaptureAttempt? bestAttempt = initialEvaluation.BestAttempt;
+        var attemptSummaries = new List<CaptureAttemptSummary>(initialEvaluation.Attempts);
 
-        foreach (var candidate in captureCandidates)
+        if (ShouldRetryWithNormalization(options, bestAttempt, selectedProcess))
         {
-            if (!Win32Capture.TryResolveCaptureRegion(candidate.ClientBounds, options.RelativeX, options.RelativeY, options.RegionWidth, options.RegionHeight, out var captureRegion))
+            layoutAdjustment = Win32Capture.NormalizeToRestoredLayout(
+                selectedProcess.MainWindowHandle,
+                options.NormalWindowX,
+                options.NormalWindowY,
+                options.NormalWindowWidth,
+                options.NormalWindowHeight);
+            selectedProcess = TryRefreshProcessSnapshot(selectedProcess.ProcessId) ?? selectedProcess;
+            var retryCandidates = CaptureWindowSelector.GetOrderedCandidates(selectedProcess, options);
+            if (retryCandidates.Count > 0)
             {
-                attemptSummaries.Add(new CaptureAttemptSummary(
-                    candidate.HandleHex,
-                    candidate.SourceKind,
-                    candidate.Title,
-                    candidate.ClassName,
-                    candidate.IsVisible,
-                    candidate.IsMinimized,
-                    false,
-                    false,
-                    0,
-                    null,
-                    "候选窗口尺寸不足，无法容纳默认状态区域。"));
-                continue;
-            }
-
-            using var bitmap = Win32Capture.TryCaptureRegion(candidate, captureRegion, options.CaptureMode);
-            if (bitmap is null)
-            {
-                attemptSummaries.Add(new CaptureAttemptSummary(
-                    candidate.HandleHex,
-                    candidate.SourceKind,
-                    candidate.Title,
-                    candidate.ClassName,
-                    candidate.IsVisible,
-                    candidate.IsMinimized,
-                    true,
-                    false,
-                    0,
-                    null,
-                    "窗口抓图失败。"));
-                continue;
-            }
-
-            var recognizedText = await RecognizeAsync(bitmap, options.LanguageTag);
-            var customKeywordDetection = EvaluateCustomKeywords(options.Keywords, recognizedText.Normalized);
-            var stateDetection = EvaluateStates(options.StateRules, recognizedText.Normalized);
-            var attemptResult = string.IsNullOrWhiteSpace(recognizedText.Normalized)
-                ? "抓图与 OCR 成功，但目标区域没有识别到文本。"
-                : "抓图与 OCR 成功。";
-            var attempt = new OcrCaptureAttempt(
-                candidate,
-                captureRegion,
-                (Bitmap)bitmap.Clone(),
-                recognizedText,
-                customKeywordDetection,
-                stateDetection);
-
-            attemptSummaries.Add(new CaptureAttemptSummary(
-                candidate.HandleHex,
-                candidate.SourceKind,
-                candidate.Title,
-                candidate.ClassName,
-                candidate.IsVisible,
-                candidate.IsMinimized,
-                true,
-                true,
-                recognizedText.Normalized.Length,
-                stateDetection.DetectedState,
-                attemptResult));
-
-            if (bestAttempt is null || attempt.Score > bestAttempt.Score)
-            {
-                bestAttempt?.CapturedBitmap.Dispose();
-                bestAttempt = attempt;
-            }
-            else
-            {
-                attempt.CapturedBitmap.Dispose();
+                var retryEvaluation = await EvaluateCaptureCandidatesAsync(retryCandidates, options, "normalized-retry");
+                attemptSummaries.AddRange(retryEvaluation.Attempts);
+                if (retryEvaluation.BestAttempt is not null)
+                {
+                    if (bestAttempt is null || retryEvaluation.BestAttempt.Score > bestAttempt.Score)
+                    {
+                        bestAttempt?.CapturedBitmap.Dispose();
+                        bestAttempt = retryEvaluation.BestAttempt;
+                    }
+                    else
+                    {
+                        retryEvaluation.BestAttempt.CapturedBitmap.Dispose();
+                    }
+                }
             }
         }
 
@@ -304,6 +268,125 @@ internal static class OcrReportBuilder
             bestAttempt.CapturedBitmap,
             markdown,
             jsonSummary);
+    }
+
+    private static async Task<CaptureEvaluation> EvaluateCaptureCandidatesAsync(
+        IReadOnlyList<CaptureWindowCandidate> captureCandidates,
+        OcrProbeOptions options,
+        string stageTag)
+    {
+        OcrCaptureAttempt? bestAttempt = null;
+        var attemptSummaries = new List<CaptureAttemptSummary>();
+
+        foreach (var candidate in captureCandidates)
+        {
+            var captureRegions = Win32Capture.ResolveCaptureRegions(candidate.ClientBounds, options);
+            if (captureRegions.Count == 0)
+            {
+                attemptSummaries.Add(new CaptureAttemptSummary(
+                    candidate.HandleHex,
+                    candidate.SourceKind,
+                    $"{stageTag}/<none>",
+                    candidate.Title,
+                    candidate.ClassName,
+                    candidate.IsVisible,
+                    candidate.IsMinimized,
+                    false,
+                    false,
+                    0,
+                    null,
+                    $"[{stageTag}] 没有可用于当前窗口尺寸的捕获区域。"));
+                continue;
+            }
+
+            foreach (var captureRegion in captureRegions)
+            {
+                using var bitmap = Win32Capture.TryCaptureRegion(candidate, captureRegion, options.CaptureMode);
+                var regionStrategy = $"{stageTag}/{captureRegion.Strategy}";
+                if (bitmap is null)
+                {
+                    attemptSummaries.Add(new CaptureAttemptSummary(
+                        candidate.HandleHex,
+                        candidate.SourceKind,
+                        regionStrategy,
+                        candidate.Title,
+                        candidate.ClassName,
+                        candidate.IsVisible,
+                        candidate.IsMinimized,
+                        true,
+                        false,
+                        0,
+                        null,
+                        $"[{regionStrategy}] 窗口抓图失败。"));
+                    continue;
+                }
+
+                var recognizedText = await RecognizeAsync(bitmap, options.LanguageTag);
+                var customKeywordDetection = EvaluateCustomKeywords(options.Keywords, recognizedText.Normalized);
+                var stateDetection = EvaluateStates(options.StateRules, recognizedText.Normalized);
+                var attemptResult = string.IsNullOrWhiteSpace(recognizedText.Normalized)
+                    ? $"[{regionStrategy}] 抓图与 OCR 成功，但目标区域没有识别到文本。"
+                    : $"[{regionStrategy}] 抓图与 OCR 成功。";
+                var attempt = new OcrCaptureAttempt(
+                    candidate,
+                    captureRegion,
+                    (Bitmap)bitmap.Clone(),
+                    recognizedText,
+                    customKeywordDetection,
+                    stateDetection);
+
+                attemptSummaries.Add(new CaptureAttemptSummary(
+                    candidate.HandleHex,
+                    candidate.SourceKind,
+                    regionStrategy,
+                    candidate.Title,
+                    candidate.ClassName,
+                    candidate.IsVisible,
+                    candidate.IsMinimized,
+                    true,
+                    true,
+                    recognizedText.Normalized.Length,
+                    stateDetection.DetectedState,
+                    attemptResult));
+
+                if (bestAttempt is null || attempt.Score > bestAttempt.Score)
+                {
+                    bestAttempt?.CapturedBitmap.Dispose();
+                    bestAttempt = attempt;
+                }
+                else
+                {
+                    attempt.CapturedBitmap.Dispose();
+                }
+            }
+        }
+
+        return new CaptureEvaluation(bestAttempt, attemptSummaries);
+    }
+
+    private static bool ShouldRetryWithNormalization(OcrProbeOptions options, OcrCaptureAttempt? bestAttempt, ProcessSnapshot selectedProcess)
+    {
+        if (options.NormalizeWindowLayout)
+        {
+            return false;
+        }
+
+        if (selectedProcess.MainWindowHandle == 0)
+        {
+            return false;
+        }
+
+        if (bestAttempt is null)
+        {
+            return true;
+        }
+
+        if (bestAttempt.StateDetection.IsMatched)
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(bestAttempt.Text.Normalized);
     }
 
     private static ProcessSnapshot? TryRefreshProcessSnapshot(int processId)
@@ -474,7 +557,7 @@ internal static class OcrReportBuilder
         IReadOnlyList<CaptureAttemptSummary> attemptSummaries)
     {
         return new OcrJsonSummary(
-            "1.1",
+            "1.2",
             DateTimeOffset.Now,
             options.ProcessPath,
             new ProcessSummary(
@@ -498,6 +581,7 @@ internal static class OcrReportBuilder
                 bestAttempt.Candidate.SelectionScore),
             new CaptureRegionSummary(
                 options.CaptureMode,
+                bestAttempt.CaptureRegion.Strategy,
                 bestAttempt.CaptureRegion.RelativeBounds,
                 bestAttempt.CaptureRegion.AbsoluteBounds),
             bestAttempt.Text,
@@ -553,6 +637,7 @@ internal static class OcrReportBuilder
         builder.AppendLine();
         builder.AppendLine("## 默认状态区域");
         builder.AppendLine();
+        builder.AppendLine($"- 区域策略: `{summary.Capture.Strategy}`");
         builder.AppendLine($"- 相对区域: `{FormatRect(summary.Capture.RelativeBounds)}`");
         builder.AppendLine($"- 绝对区域: `{FormatRect(summary.Capture.AbsoluteBounds)}`");
         builder.AppendLine("- 说明: `默认区域已经固化为中部偏左状态检测区域。`");
@@ -604,11 +689,11 @@ internal static class OcrReportBuilder
         builder.AppendLine();
         builder.AppendLine("## 窗口候选尝试");
         builder.AppendLine();
-        builder.AppendLine("| 句柄 | 来源 | 标题 | 类名 | 可见 | 最小化 | 区域可用 | 抓图成功 | 识别状态 | 文本长度 | 结果 |");
-        builder.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+        builder.AppendLine("| 句柄 | 来源 | 区域策略 | 标题 | 类名 | 可见 | 最小化 | 区域可用 | 抓图成功 | 识别状态 | 文本长度 | 结果 |");
+        builder.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
         foreach (var attempt in summary.AttemptedWindows)
         {
-            builder.AppendLine($"| `{attempt.HandleHex}` | `{attempt.SourceKind}` | `{Escape(attempt.Title)}` | `{Escape(attempt.ClassName)}` | {attempt.IsVisible} | {attempt.IsMinimized} | {attempt.RegionFits} | {attempt.CaptureSucceeded} | `{attempt.DetectedState ?? "<none>"}` | {attempt.NormalizedTextLength} | `{Escape(attempt.Result)}` |");
+            builder.AppendLine($"| `{attempt.HandleHex}` | `{attempt.SourceKind}` | `{attempt.RegionStrategy}` | `{Escape(attempt.Title)}` | `{Escape(attempt.ClassName)}` | {attempt.IsVisible} | {attempt.IsMinimized} | {attempt.RegionFits} | {attempt.CaptureSucceeded} | `{attempt.DetectedState ?? "<none>"}` | {attempt.NormalizedTextLength} | `{Escape(attempt.Result)}` |");
         }
         builder.AppendLine();
         builder.AppendLine("## 说明");
@@ -678,11 +763,21 @@ internal static class CaptureWindowSelector
                 selectionScore += 120;
                 scoreReasons.Add("可见");
             }
+            else
+            {
+                selectionScore -= 220;
+                scoreReasons.Add("不可见");
+            }
 
             if (!window.IsMinimized)
             {
                 selectionScore += 100;
                 scoreReasons.Add("未最小化");
+            }
+            else
+            {
+                selectionScore -= 180;
+                scoreReasons.Add("最小化");
             }
 
             if (window.IsEnabled)
@@ -730,6 +825,13 @@ internal static class CaptureWindowSelector
 
             var areaBonus = Math.Min((window.ClientBounds.Width * window.ClientBounds.Height) / 20000, 120);
             selectionScore += areaBonus;
+
+            if (IsOffscreenWindow(window))
+            {
+                selectionScore -= 320;
+                scoreReasons.Add("离屏窗口");
+            }
+
             candidates.Add(new CaptureWindowCandidate(
                 window.Handle,
                 window.HandleHex,
@@ -782,6 +884,14 @@ internal static class CaptureWindowSelector
         }
 
         return window.Title.Contains("settingWindow", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsOffscreenWindow(WindowInfo window)
+    {
+        return window.WindowBounds.X <= -3000 ||
+            window.WindowBounds.Y <= -3000 ||
+            window.ClientBounds.X <= -3000 ||
+            window.ClientBounds.Y <= -3000;
     }
 }
 
@@ -893,24 +1003,76 @@ internal static class Win32Capture
         return handles;
     }
 
-    public static bool TryResolveCaptureRegion(Int32Rect clientBounds, int relativeX, int relativeY, int width, int height, out CaptureRegion captureRegion)
+    public static IReadOnlyList<CaptureRegion> ResolveCaptureRegions(Int32Rect clientBounds, OcrProbeOptions options)
+    {
+        var regions = new List<CaptureRegion>();
+        var dedupe = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        TryAddRegion("fixed", options.RelativeX, options.RelativeY, options.RegionWidth, options.RegionHeight);
+
+        if (options.UseAdaptiveRegion)
+        {
+            var scaleX = clientBounds.Width / (double)options.BaselineClientWidth;
+            var scaleY = clientBounds.Height / (double)options.BaselineClientHeight;
+            var scaledX = Math.Max(0, (int)Math.Round(options.RelativeX * scaleX));
+            var scaledY = Math.Max(0, (int)Math.Round(options.RelativeY * scaleY));
+            var scaledWidth = Math.Max(1, (int)Math.Round(options.RegionWidth * scaleX));
+            var scaledHeight = Math.Max(1, (int)Math.Round(options.RegionHeight * scaleY));
+            TryAddRegion("adaptive-scaled", scaledX, scaledY, scaledWidth, scaledHeight);
+        }
+
+        var clampedX = Math.Clamp(options.RelativeX, 0, Math.Max(clientBounds.Width - 1, 0));
+        var clampedY = Math.Clamp(options.RelativeY, 0, Math.Max(clientBounds.Height - 1, 0));
+        var clampedWidth = Math.Min(options.RegionWidth, Math.Max(clientBounds.Width - clampedX, 0));
+        var clampedHeight = Math.Min(options.RegionHeight, Math.Max(clientBounds.Height - clampedY, 0));
+        if (clampedWidth >= 240 && clampedHeight >= 160)
+        {
+            TryAddRegion("fit-to-client", clampedX, clampedY, clampedWidth, clampedHeight);
+        }
+
+        return regions;
+
+        void TryAddRegion(string strategy, int relativeX, int relativeY, int width, int height)
+        {
+            if (!TryCreateRegion(clientBounds, relativeX, relativeY, width, height, strategy, out var region))
+            {
+                return;
+            }
+
+            var key = $"{region.RelativeBounds.X}:{region.RelativeBounds.Y}:{region.RelativeBounds.Width}:{region.RelativeBounds.Height}";
+            if (!dedupe.Add(key))
+            {
+                return;
+            }
+
+            regions.Add(region);
+        }
+    }
+
+    private static bool TryCreateRegion(Int32Rect clientBounds, int relativeX, int relativeY, int width, int height, string strategy, out CaptureRegion captureRegion)
     {
         captureRegion = default!;
-        if (width <= 0 || height <= 0)
+        if (clientBounds.Width <= 0 || clientBounds.Height <= 0 || width <= 0 || height <= 0)
+        {
+            return false;
+        }
+
+        if (relativeX < 0 || relativeY < 0)
+        {
+            return false;
+        }
+
+        if (relativeX + width > clientBounds.Width || relativeY + height > clientBounds.Height)
         {
             return false;
         }
 
         var absoluteX = clientBounds.X + relativeX;
         var absoluteY = clientBounds.Y + relativeY;
-        if (absoluteX < clientBounds.X || absoluteY < clientBounds.Y || absoluteX + width > clientBounds.X + clientBounds.Width || absoluteY + height > clientBounds.Y + clientBounds.Height)
-        {
-            return false;
-        }
-
         captureRegion = new CaptureRegion(
             new Int32Rect(absoluteX, absoluteY, width, height),
-            new Int32Rect(relativeX, relativeY, width, height));
+            new Int32Rect(relativeX, relativeY, width, height),
+            strategy);
         return true;
     }
 
@@ -1193,6 +1355,10 @@ internal sealed record ProcessSnapshot(
 
 internal sealed record CandidateSeed(long Handle, string SourceKind, string SourceReason, int BaseScore);
 
+internal sealed record CaptureEvaluation(
+    OcrCaptureAttempt? BestAttempt,
+    IReadOnlyList<CaptureAttemptSummary> Attempts);
+
 internal sealed record CaptureWindowCandidate(
     long Handle,
     string HandleHex,
@@ -1220,8 +1386,20 @@ internal sealed record OcrCaptureAttempt(
     public int Score =>
         (StateDetection.IsMatched ? 100_000 : 0) +
         (CustomKeywordDetection.AnyMatched ? 10_000 : 0) +
+        GetRegionBonus(CaptureRegion.Strategy) +
         Text.Normalized.Length +
         Candidate.SelectionScore;
+
+    private static int GetRegionBonus(string strategy)
+    {
+        return strategy switch
+        {
+            "adaptive-scaled" => 100,
+            "fixed" => 60,
+            "fit-to-client" => 20,
+            _ => 0,
+        };
+    }
 }
 
 internal sealed record OcrJsonSummary(
@@ -1284,6 +1462,7 @@ internal sealed record CaptureWindowSummary(
 
 internal sealed record CaptureRegionSummary(
     CaptureMode CaptureMode,
+    string Strategy,
     Int32Rect RelativeBounds,
     Int32Rect AbsoluteBounds);
 
@@ -1315,6 +1494,7 @@ internal sealed record OcrTextSummary(
 internal sealed record CaptureAttemptSummary(
     string HandleHex,
     string SourceKind,
+    string RegionStrategy,
     string Title,
     string ClassName,
     bool IsVisible,
@@ -1348,4 +1528,4 @@ internal sealed record WindowInfo(
     Int32Rect WindowBounds,
     Int32Rect ClientBounds);
 
-internal sealed record CaptureRegion(Int32Rect AbsoluteBounds, Int32Rect RelativeBounds);
+internal sealed record CaptureRegion(Int32Rect AbsoluteBounds, Int32Rect RelativeBounds, string Strategy);
