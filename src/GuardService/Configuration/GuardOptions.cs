@@ -27,6 +27,37 @@ public sealed class GuardOptions
 
     public bool AllowMinimizedWindow { get; set; }
 
+    public bool AutoStartWhenNotRunning { get; set; } = true;
+
+    [Range(100, 300000)]
+    public int StartProcessWaitMilliseconds { get; set; } = 5000;
+
+    public bool EnableLoginAssist { get; set; } = true;
+
+    [Range(100, 300000)]
+    public int LoginClickTimeoutMs { get; set; } = 3000;
+
+    [Range(1, 3600)]
+    public int LoginAssistCooldownSeconds { get; set; } = 10;
+
+    public bool AllowMouseFallback { get; set; } = true;
+
+    public List<string> LoginButtonKeywords { get; set; } =
+    [
+        "登录",
+        "立即登录",
+        "Login",
+    ];
+
+    public bool EnableTestMode { get; set; }
+
+    [Range(1, 1000)]
+    public int TestModeLoopCount { get; set; } = 3;
+
+    public bool HeadlessWindowOnly { get; set; } = true;
+
+    public string? AutomationDiagnosticsPath { get; set; }
+
     public string NormalizedProcessName => NormalizeProcessName(TargetProcessName);
 
     public static string NormalizeProcessName(string processName)

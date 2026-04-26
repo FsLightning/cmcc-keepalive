@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GuardService")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+86bed6ab2e456b718b9d4f54d9cf772e18177d4c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b060ec5f691f6faca48db0796ac3dbe384b78e2c")]
 [assembly: System.Reflection.AssemblyProductAttribute("GuardService")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GuardService")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
