@@ -1,73 +1,73 @@
 # Recognition MVP
 
-## Goal
+## 目标
 
-The first implementation focuses on technical validation only. It should answer three questions reliably on a Windows 11 host:
+第一阶段实现只做技术验证，核心是稳定回答以下三个问题：
 
-- Is the target process running?
-- Can the target top-level window be identified?
-- Does the observed window look like a normal ready desktop?
+- 目标进程是否正在运行。
+- 目标顶层窗口是否可以被稳定识别。
+- 当前观察到的窗口是否满足“正常桌面已就绪”的只读规则。
 
-The main GuardService MVP must not perform recovery, notifications, OCR, or any input automation.
+GuardService 当前不负责恢复、通知、OCR，也不负责任何输入自动化。
 
-The currently confirmed target process is `Ecloud Cloud Computer Application.exe`.
+当前已经确认的目标进程为 `Ecloud Cloud Computer Application.exe`。
 
-## Runtime flow
+## 运行流程
 
-Each polling cycle follows the same order:
+每个轮询周期都按同一顺序执行：
 
-1. Probe the target process.
-2. Probe the target window for the selected process.
-3. Classify the current session state.
-4. Log a readable summary and a structured payload.
+1. 识别目标进程。
+2. 为被选中的进程识别目标窗口。
+3. 计算当前会话状态。
+4. 输出可读摘要和结构化日志。
 
-For one-off HWND inspection and sample collection, use `src/WindowInspector`. It does not classify session state; it only dumps process candidates, top-level windows, and descendant HWND elements to Markdown.
+如果要做一次性的 HWND 采样和窗口树导出，使用 `src/WindowInspector`。它不参与状态分类，只负责把进程候选、顶层窗口和后代 HWND 元素导出为 Markdown。
 
-For experimental fixed-region page detection, use `src/OcrProbe`. It does not alter the GuardService runtime flow; it captures a configured client-area region, runs OCR, reports keyword matches, and can classify the observed page region into `Windows 已关机`, `Windows 关机中`, or `Windows 运行中` when the OCR text is sufficient.
+如果要做固定区域页面识别，使用 `src/OcrProbe`。它不会改动 GuardService 主流程，只负责截取指定客户端区域、执行 OCR、记录关键词匹配，并在文本充分时把页面判定为 `Windows 已关机`、`Windows 关机中` 或 `Windows 运行中`。
 
-## Session states
+## 会话状态定义
 
-- `NotRunning`: No matching process instance was selected.
-- `ProcessOnly`: A process was selected, but no usable top-level window was found.
-- `ClientVisibleButUnknown`: A top-level window was found, but it did not satisfy the current desktop-ready rules.
-- `DesktopReady`: A top-level window was found and matched the configured desktop-ready rules.
+- `NotRunning`：没有选中任何匹配的目标进程实例。
+- `ProcessOnly`：已经选中进程，但没有找到可用的顶层窗口。
+- `ClientVisibleButUnknown`：找到了顶层窗口，但不满足当前桌面就绪规则。
+- `DesktopReady`：找到了顶层窗口，并满足当前桌面就绪规则。
 
-## Desktop-ready rules
+## 桌面就绪规则
 
-The first implementation uses simple and transparent rules:
+当前实现使用尽量透明的规则，便于后续继续收紧：
 
-- The window must exist.
-- The window must be visible if `RequireVisibleWindow` is enabled.
-- The window must not be minimized if `AllowMinimizedWindow` is disabled.
-- The window bounds must be at least `MinimumDesktopWidth` x `MinimumDesktopHeight`.
-- If title or class keywords are configured, at least one configured keyword must match.
-- If no keywords are configured, size and visibility rules alone are enough for `DesktopReady`.
+- 窗口必须存在。
+- 如果启用了 `RequireVisibleWindow`，窗口必须可见。
+- 如果禁用了 `AllowMinimizedWindow`，窗口不能处于最小化状态。
+- 窗口尺寸至少要达到 `MinimumDesktopWidth x MinimumDesktopHeight`。
+- 如果配置了标题关键词或类名关键词，至少要命中一个。
+- 如果没有配置任何关键词，仅依赖尺寸和可见性规则即可判定为 `DesktopReady`。
 
-## Process selection rules
+## 进程选择规则
 
-- Match the process by normalized process name.
-- If `TargetExecutablePath` is configured, require an exact path match.
-- If only one candidate exists, select it.
-- If multiple candidates exist and exactly one has a main window handle, select that one.
-- Otherwise, pick the most recently started candidate and keep the full candidate list in the log payload.
+- 先按标准化后的进程名匹配。
+- 如果配置了 `TargetExecutablePath`，要求路径完全一致。
+- 如果只有一个候选进程，直接选中它。
+- 如果有多个候选且只有一个拥有主窗口句柄，优先选它。
+- 否则选最近启动的候选进程，并把完整候选列表保留在日志中。
 
-## Window selection rules
+## 窗口选择规则
 
-For the selected process, enumerate all top-level windows and rank them by:
+对于已选中的目标进程，会枚举全部顶层窗口，并按以下顺序排序：
 
-1. Visible first.
-2. Non-minimized first.
-3. Larger area first.
-4. Higher handle value last as a deterministic tie-breaker.
+1. 可见窗口优先。
+2. 未最小化窗口优先。
+3. 面积更大的窗口优先。
+4. 句柄值作为最终的稳定性 tie-breaker。
 
-The chosen window is logged together with the full candidate list.
+最终选中的窗口会和全部候选窗口一起写入日志，便于后续回放样本。
 
-## Configuration fields
+## 配置项
 
-The `Guard` section in `appsettings.json` controls the MVP:
+`appsettings.json` 中的 `Guard` 节控制识别 MVP：
 
 - `PollIntervalSeconds`
-- `TargetProcessName`: currently set to `Ecloud Cloud Computer Application.exe`
+- `TargetProcessName`：当前默认值是 `Ecloud Cloud Computer Application.exe`
 - `TargetExecutablePath`
 - `DesktopTitleKeywords`
 - `DesktopClassKeywords`
@@ -76,13 +76,13 @@ The `Guard` section in `appsettings.json` controls the MVP:
 - `RequireVisibleWindow`
 - `AllowMinimizedWindow`
 
-## Validation checklist
+## 验证清单
 
-- Start the service while the client is closed and verify `NotRunning`.
-- Launch the client and verify that the process metadata is logged.
-- Confirm that the expected top-level window metadata is logged.
-- Observe a normal ready desktop and verify `DesktopReady`.
-- Observe a client window that does not match the rules and verify `ClientVisibleButUnknown`.
-- Review the structured log payload before tightening any recognition rule.
-- Run `WindowInspector` and confirm the exported Markdown sample reflects the current top-level and descendant HWND tree without using OCR.
-- Run `OcrProbe` on a restored client window and confirm the exported Markdown and JSON samples include recognized Chinese text, keyword-match results, and the derived three-state OCR classification for the target region.
+- 在客户端未启动时运行服务，确认状态为 `NotRunning`。
+- 启动客户端，确认日志中能看到目标进程元数据。
+- 确认日志中能看到预期的顶层窗口元数据。
+- 在正常桌面状态下观察日志，确认能够命中 `DesktopReady`。
+- 在不满足规则的客户端窗口下观察日志，确认能够命中 `ClientVisibleButUnknown`。
+- 在收紧任何识别规则前，先复核结构化日志负载。
+- 运行 `WindowInspector`，确认导出的 Markdown 样本正确反映当前顶层窗口和后代 HWND 树，且不依赖 OCR。
+- 在客户端窗口已恢复的情况下运行 `OcrProbe`，确认 Markdown 和 JSON 样本中包含 OCR 文本、关键词结果和三态识别结果。

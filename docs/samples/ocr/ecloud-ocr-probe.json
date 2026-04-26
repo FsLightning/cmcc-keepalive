@@ -1,36 +1,56 @@
 {
-  "schemaVersion": "1.0",
-  "capturedAt": "2026-04-25T23:54:28.0072348+08:00",
+  "schemaVersion": "1.1",
+  "capturedAt": "2026-04-26T08:35:47.1951873+08:00",
   "targetProcessPath": "C:\\Program Files (x86)\\Ecloud\\CloudComputer\\Ecloud Cloud Computer Application.exe",
   "process": {
-    "processId": 12124,
+    "processId": 14088,
     "processName": "Ecloud Cloud Computer Application",
     "executablePath": "C:\\Program Files (x86)\\Ecloud\\CloudComputer\\Ecloud Cloud Computer Application.exe",
     "mainWindowTitle": "\u79FB\u52A8\u4E91\u7535\u8111",
-    "mainWindowHandleHex": "0x30494"
+    "mainWindowHandleHex": "0x70482"
+  },
+  "layoutAdjustment": {
+    "requested": true,
+    "wasMaximized": false,
+    "wasMinimized": false,
+    "restoredToNormal": true,
+    "resizeSucceeded": true,
+    "boundsBefore": {
+      "x": 120,
+      "y": 80,
+      "width": 2048,
+      "height": 1113
+    },
+    "boundsAfter": {
+      "x": 120,
+      "y": 80,
+      "width": 2048,
+      "height": 1113
+    },
+    "message": "OCR \u524D\u5DF2\u5C1D\u8BD5\u6062\u590D\u666E\u901A\u7A97\u4F53\u5E76\u8C03\u6574\u5230\u76EE\u6807\u5206\u8FA8\u7387\u3002"
   },
   "selectedCaptureWindow": {
-    "handleHex": "0x70526",
-    "title": "Chrome Legacy Window",
-    "className": "Chrome_RenderWidgetHostHWND",
-    "sourceKind": "RenderHost",
-    "selectionReason": "\u672A\u6700\u5C0F\u5316\uFF0C\u53EF\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\uFF0CRenderHost \u5185\u5BB9\u7A97\u53E3",
-    "isVisible": false,
+    "handleHex": "0x70482",
+    "title": "\u79FB\u52A8\u4E91\u7535\u8111",
+    "className": "Chrome_WidgetWin_0",
+    "sourceKind": "MainWindow",
+    "selectionReason": "\u53EF\u89C1\uFF0C\u672A\u6700\u5C0F\u5316\uFF0C\u53EF\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\uFF0C\u6807\u9898\u547D\u4E2D\u79FB\u52A8\u4E91\u7535\u8111",
+    "isVisible": true,
     "isMinimized": false,
     "isEnabled": true,
     "windowBounds": {
-      "x": -25600,
-      "y": -25600,
-      "width": 1624,
-      "height": 948
+      "x": 120,
+      "y": 80,
+      "width": 2048,
+      "height": 1113
     },
     "clientBounds": {
-      "x": -25600,
-      "y": -25600,
-      "width": 1624,
-      "height": 948
+      "x": 128,
+      "y": 111,
+      "width": 2032,
+      "height": 1074
     },
-    "selectionScore": 736
+    "selectionScore": 949
   },
   "capture": {
     "captureMode": 1,
@@ -41,16 +61,107 @@
       "height": 700
     },
     "absoluteBounds": {
-      "x": -25480,
-      "y": -25380,
+      "x": 248,
+      "y": 331,
       "width": 1200,
       "height": 700
     }
   },
   "text": {
-    "original": "",
-    "normalized": "",
-    "lines": []
+    "original": "8 \u6838 9 Windows \u6211 \u7684 \u7535 \u8111 0 \u529E \u516C \u578B \u300A 0 \u534E \u5317 \uFF0E \u5317 \u4EAC 3 \u81EA \u52A8 \u8FDE \u63A5 \u5DF2 \u5173 \u673A ] 5 GB \u65AD \u5F00",
+    "normalized": "8\u68389Windows\u6211\u7684\u7535\u81110\u529E\u516C\u578B\u300A0\u534E\u5317\uFF0E\u5317\u4EAC3\u81EA\u52A8\u8FDE\u63A5\u5DF2\u5173\u673A]5GB\u65AD\u5F00",
+    "lines": [
+      {
+        "text": "8 \u6838",
+        "bounds": {
+          "x": 1036,
+          "y": 306,
+          "width": 27,
+          "height": 15
+        }
+      },
+      {
+        "text": "9",
+        "bounds": {
+          "x": 1036,
+          "y": 406,
+          "width": 22,
+          "height": 22
+        }
+      },
+      {
+        "text": "Windows",
+        "bounds": {
+          "x": 473,
+          "y": 427,
+          "width": 82,
+          "height": 15
+        }
+      },
+      {
+        "text": "\u6211 \u7684 \u7535 \u8111",
+        "bounds": {
+          "x": 732,
+          "y": 236,
+          "width": 82,
+          "height": 20
+        }
+      },
+      {
+        "text": "0 \u529E \u516C \u578B \u300A",
+        "bounds": {
+          "x": 748,
+          "y": 285,
+          "width": 76,
+          "height": 16
+        }
+      },
+      {
+        "text": "0 \u534E \u5317 \uFF0E \u5317 \u4EAC 3",
+        "bounds": {
+          "x": 735,
+          "y": 328,
+          "width": 76,
+          "height": 15
+        }
+      },
+      {
+        "text": "\u81EA \u52A8 \u8FDE \u63A5",
+        "bounds": {
+          "x": 741,
+          "y": 405,
+          "width": 60,
+          "height": 15
+        }
+      },
+      {
+        "text": "\u5DF2 \u5173 \u673A",
+        "bounds": {
+          "x": 578,
+          "y": 426,
+          "width": 54,
+          "height": 17
+        }
+      },
+      {
+        "text": "] 5 GB",
+        "bounds": {
+          "x": 1135,
+          "y": 309,
+          "width": 40,
+          "height": 11
+        }
+      },
+      {
+        "text": "\u65AD \u5F00",
+        "bounds": {
+          "x": 1141,
+          "y": 453,
+          "width": 26,
+          "height": 13
+        }
+      }
+    ]
   },
   "customKeywordDetection": {
     "configuredKeywords": [],
@@ -59,8 +170,8 @@
     "allMatched": false
   },
   "stateDetection": {
-    "detectedState": null,
-    "isMatched": false,
+    "detectedState": "Windows \u5DF2\u5173\u673A",
+    "isMatched": true,
     "candidates": [
       {
         "name": "Windows \u5DF2\u5173\u673A",
@@ -68,12 +179,12 @@
           "Windows",
           "\u5DF2\u5173\u673A"
         ],
-        "matchedTerms": [],
-        "missingTerms": [
+        "matchedTerms": [
           "Windows",
           "\u5DF2\u5173\u673A"
         ],
-        "isMatched": false
+        "missingTerms": [],
+        "isMatched": true
       },
       {
         "name": "Windows \u5173\u673A\u4E2D",
@@ -81,9 +192,10 @@
           "Windows",
           "\u5173\u673A\u4E2D"
         ],
-        "matchedTerms": [],
+        "matchedTerms": [
+          "Windows"
+        ],
         "missingTerms": [
-          "Windows",
           "\u5173\u673A\u4E2D"
         ],
         "isMatched": false
@@ -94,9 +206,10 @@
           "Windows",
           "\u8FD0\u884C\u4E2D"
         ],
-        "matchedTerms": [],
+        "matchedTerms": [
+          "Windows"
+        ],
         "missingTerms": [
-          "Windows",
           "\u8FD0\u884C\u4E2D"
         ],
         "isMatched": false
@@ -105,35 +218,35 @@
   },
   "attemptedWindows": [
     {
-      "handleHex": "0x70526",
-      "sourceKind": "RenderHost",
-      "title": "Chrome Legacy Window",
-      "className": "Chrome_RenderWidgetHostHWND",
-      "isVisible": false,
-      "isMinimized": false,
-      "regionFits": true,
-      "captureSucceeded": true,
-      "normalizedTextLength": 0,
-      "detectedState": null,
-      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
-    },
-    {
-      "handleHex": "0x30494",
+      "handleHex": "0x70482",
       "sourceKind": "MainWindow",
       "title": "\u79FB\u52A8\u4E91\u7535\u8111",
       "className": "Chrome_WidgetWin_0",
       "isVisible": true,
-      "isMinimized": true,
-      "regionFits": false,
-      "captureSucceeded": false,
-      "normalizedTextLength": 0,
-      "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 39,
+      "detectedState": "Windows \u5DF2\u5173\u673A",
+      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
     },
     {
-      "handleHex": "0x8052A",
+      "handleHex": "0x40494",
+      "sourceKind": "RenderHost",
+      "title": "Chrome Legacy Window",
+      "className": "Chrome_RenderWidgetHostHWND",
+      "isVisible": true,
+      "isMinimized": false,
+      "regionFits": true,
+      "captureSucceeded": true,
+      "normalizedTextLength": 39,
+      "detectedState": "Windows \u5DF2\u5173\u673A",
+      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
+    },
+    {
+      "handleHex": "0x5B0030",
       "sourceKind": "TopLevelWindow",
-      "title": "settingWindow",
+      "title": "",
       "className": "Chrome_WidgetWin_0",
       "isVisible": false,
       "isMinimized": false,
@@ -141,10 +254,10 @@
       "captureSucceeded": true,
       "normalizedTextLength": 0,
       "detectedState": null,
-      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\u3002"
+      "result": "\u6293\u56FE\u4E0E OCR \u6210\u529F\uFF0C\u4F46\u76EE\u6807\u533A\u57DF\u6CA1\u6709\u8BC6\u522B\u5230\u6587\u672C\u3002"
     },
     {
-      "handleHex": "0x80480",
+      "handleHex": "0x2803AE",
       "sourceKind": "TopLevelWindow",
       "title": "",
       "className": "Chrome_WidgetWin_0",
@@ -157,7 +270,7 @@
       "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
     },
     {
-      "handleHex": "0x2603AE",
+      "handleHex": "0x2604BA",
       "sourceKind": "TopLevelWindow",
       "title": "",
       "className": "Chrome_WidgetWin_0",
@@ -170,72 +283,7 @@
       "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
     },
     {
-      "handleHex": "0x7047A",
-      "sourceKind": "TopLevelWindow",
-      "title": "",
-      "className": "Chrome_SystemMessageWindow",
-      "isVisible": false,
-      "isMinimized": false,
-      "regionFits": false,
-      "captureSucceeded": false,
-      "normalizedTextLength": 0,
-      "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
-    },
-    {
-      "handleHex": "0x1104A4",
-      "sourceKind": "TopLevelWindow",
-      "title": "",
-      "className": "Electron_NotifyIconHostWindow",
-      "isVisible": false,
-      "isMinimized": false,
-      "regionFits": false,
-      "captureSucceeded": false,
-      "normalizedTextLength": 0,
-      "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
-    },
-    {
-      "handleHex": "0x50492",
-      "sourceKind": "TopLevelWindow",
-      "title": "",
-      "className": "Base_PowerMessageWindow",
-      "isVisible": false,
-      "isMinimized": false,
-      "regionFits": false,
-      "captureSucceeded": false,
-      "normalizedTextLength": 0,
-      "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
-    },
-    {
-      "handleHex": "0x70524",
-      "sourceKind": "TopLevelWindow",
-      "title": "MSCTFIME UI",
-      "className": "MSCTFIME UI",
-      "isVisible": false,
-      "isMinimized": false,
-      "regionFits": false,
-      "captureSucceeded": false,
-      "normalizedTextLength": 0,
-      "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
-    },
-    {
-      "handleHex": "0x15001C",
-      "sourceKind": "TopLevelWindow",
-      "title": "Default IME",
-      "className": "IME",
-      "isVisible": false,
-      "isMinimized": false,
-      "regionFits": false,
-      "captureSucceeded": false,
-      "normalizedTextLength": 0,
-      "detectedState": null,
-      "result": "\u5019\u9009\u7A97\u53E3\u5C3A\u5BF8\u4E0D\u8DB3\uFF0C\u65E0\u6CD5\u5BB9\u7EB3\u9ED8\u8BA4\u72B6\u6001\u533A\u57DF\u3002"
-    },
-    {
-      "handleHex": "0xA0478",
+      "handleHex": "0x80528",
       "sourceKind": "TopLevelWindow",
       "title": "",
       "className": "Chrome_WidgetWin_0",

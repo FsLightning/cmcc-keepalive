@@ -23,7 +23,12 @@ return 0;
 internal sealed record InspectorOptions(
     string ProcessPath,
     string ProcessName,
-    string OutputPath)
+    string OutputPath,
+    bool NormalizeWindowLayout,
+    int NormalWindowX,
+    int NormalWindowY,
+    int NormalWindowWidth,
+    int NormalWindowHeight)
 {
     public static InspectorOptions Parse(string[] args)
     {
@@ -51,10 +56,54 @@ internal sealed record InspectorOptions(
             ? configuredOutput
             : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "samples", "ecloud-window-elements.md");
 
+        var normalizeWindowLayout = ParseBool(values, "--normalize-window-layout", true);
+        var normalWindowX = ParseInt(values, "--normal-window-x", 120);
+        var normalWindowY = ParseInt(values, "--normal-window-y", 80);
+        var normalWindowWidth = ParsePositiveInt(values, "--normal-window-width", 1600);
+        var normalWindowHeight = ParsePositiveInt(values, "--normal-window-height", 900);
+
         return new InspectorOptions(
             Path.GetFullPath(processPath),
             processName,
-            Path.GetFullPath(outputPath));
+            Path.GetFullPath(outputPath),
+            normalizeWindowLayout,
+            normalWindowX,
+            normalWindowY,
+            normalWindowWidth,
+            normalWindowHeight);
+    }
+
+    private static int ParseInt(IReadOnlyDictionary<string, string> values, string key, int fallback)
+    {
+        return values.TryGetValue(key, out var configuredValue) && int.TryParse(configuredValue, out var parsedValue)
+            ? parsedValue
+            : fallback;
+    }
+
+    private static int ParsePositiveInt(IReadOnlyDictionary<string, string> values, string key, int fallback)
+    {
+        var value = ParseInt(values, key, fallback);
+        return value > 0 ? value : fallback;
+    }
+
+    private static bool ParseBool(IReadOnlyDictionary<string, string> values, string key, bool fallback)
+    {
+        if (!values.TryGetValue(key, out var configuredValue))
+        {
+            return fallback;
+        }
+
+        if (bool.TryParse(configuredValue, out var parsedBool))
+        {
+            return parsedBool;
+        }
+
+        if (int.TryParse(configuredValue, out var parsedInt))
+        {
+            return parsedInt != 0;
+        }
+
+        return fallback;
     }
 }
 
@@ -77,14 +126,25 @@ internal static class WindowReportBuilder
         }
 
         var selectedProcess = candidates[0];
+        var initialTopLevelWindows = Win32WindowInspector.GetTopLevelWindows(selectedProcess.ProcessId);
+        var initialSelectedWindow = ResolveSelectedWindow(selectedProcess, initialTopLevelWindows);
+        var layoutAdjustment = options.NormalizeWindowLayout && initialSelectedWindow is not null
+            ? Win32WindowInspector.NormalizeToRestoredLayout(
+                initialSelectedWindow.Handle,
+                options.NormalWindowX,
+                options.NormalWindowY,
+                options.NormalWindowWidth,
+                options.NormalWindowHeight)
+            : WindowLayoutAdjustment.NotRequested(options.NormalizeWindowLayout, initialSelectedWindow is not null);
+
         var topLevelWindows = Win32WindowInspector.GetTopLevelWindows(selectedProcess.ProcessId);
-        var selectedWindow = ResolveSelectedWindow(selectedProcess, topLevelWindows);
+        var selectedWindow = ResolveSelectedWindow(selectedProcess, topLevelWindows) ?? initialSelectedWindow;
         var descendants = selectedWindow is null
             ? []
             : Win32WindowInspector.GetDescendantWindows(selectedWindow.Handle);
 
-        var markdown = BuildMarkdown(options, selectedProcess, candidates, topLevelWindows, selectedWindow, descendants);
-        return new WindowReport(options.OutputPath, selectedProcess, selectedWindow, markdown);
+        var markdown = BuildMarkdown(options, selectedProcess, candidates, topLevelWindows, selectedWindow, descendants, layoutAdjustment);
+        return new WindowReport(options.OutputPath, selectedProcess, selectedWindow, layoutAdjustment, markdown);
     }
 
     private static WindowElementSnapshot? ResolveSelectedWindow(ProcessSnapshot process, IReadOnlyList<WindowElementSnapshot> topLevelWindows)
@@ -111,7 +171,8 @@ internal static class WindowReportBuilder
         IReadOnlyList<ProcessSnapshot> processCandidates,
         IReadOnlyList<WindowElementSnapshot> topLevelWindows,
         WindowElementSnapshot? selectedWindow,
-        IReadOnlyList<WindowElementSnapshot> descendants)
+        IReadOnlyList<WindowElementSnapshot> descendants,
+        WindowLayoutAdjustment layoutAdjustment)
     {
         var builder = new StringBuilder();
         builder.AppendLine("# Ecloud Window Element Snapshot");
@@ -159,6 +220,26 @@ internal static class WindowReportBuilder
             builder.AppendLine($"- Enabled: `{selectedWindow.IsEnabled}`");
             builder.AppendLine($"- Bounds: `{FormatBounds(selectedWindow.Bounds)}`");
             builder.AppendLine($"- Child/descendant count: `{descendants.Count}`");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("## Window Layout Adjustment (Before Probe)");
+        builder.AppendLine();
+        builder.AppendLine($"- Requested: `{layoutAdjustment.Requested}`");
+        builder.AppendLine($"- Target normal bounds: `({options.NormalWindowX}, {options.NormalWindowY}) {options.NormalWindowWidth}x{options.NormalWindowHeight}`");
+        builder.AppendLine($"- Was maximized: `{layoutAdjustment.WasMaximized}`");
+        builder.AppendLine($"- Was minimized: `{layoutAdjustment.WasMinimized}`");
+        builder.AppendLine($"- Restored to normal: `{layoutAdjustment.RestoredToNormal}`");
+        builder.AppendLine($"- Resize applied: `{layoutAdjustment.ResizeSucceeded}`");
+        builder.AppendLine($"- Message: `{Escape(layoutAdjustment.Message)}`");
+        if (layoutAdjustment.BoundsBefore is not null)
+        {
+            builder.AppendLine($"- Bounds before: `{FormatBounds(layoutAdjustment.BoundsBefore)}`");
+        }
+
+        if (layoutAdjustment.BoundsAfter is not null)
+        {
+            builder.AppendLine($"- Bounds after: `{FormatBounds(layoutAdjustment.BoundsAfter)}`");
         }
 
         builder.AppendLine();
@@ -213,7 +294,28 @@ internal sealed record WindowReport(
     string OutputPath,
     ProcessSnapshot SelectedProcess,
     WindowElementSnapshot? SelectedWindow,
+    WindowLayoutAdjustment LayoutAdjustment,
     string Markdown);
+
+internal sealed record WindowLayoutAdjustment(
+    bool Requested,
+    bool WasMaximized,
+    bool WasMinimized,
+    bool RestoredToNormal,
+    bool ResizeSucceeded,
+    WindowBounds? BoundsBefore,
+    WindowBounds? BoundsAfter,
+    string Message)
+{
+    public static WindowLayoutAdjustment NotRequested(bool normalizationEnabled, bool hasWindow)
+    {
+        return !normalizationEnabled
+            ? new WindowLayoutAdjustment(false, false, false, false, false, null, null, "Window layout normalization is disabled by option.")
+            : new WindowLayoutAdjustment(true, false, false, false, false, null, null, hasWindow
+                ? "Window layout normalization was requested but no actionable window was selected."
+                : "No selected window is available for normalization.");
+    }
+}
 
 internal sealed record ProcessSnapshot(
     int ProcessId,
@@ -271,6 +373,57 @@ internal sealed record WindowElementSnapshot(
 
 internal static class Win32WindowInspector
 {
+    public static WindowLayoutAdjustment NormalizeToRestoredLayout(long windowHandle, int x, int y, int width, int height)
+    {
+        if (windowHandle == 0)
+        {
+            return new WindowLayoutAdjustment(true, false, false, false, false, null, null, "Selected window handle is 0.");
+        }
+
+        var handle = new IntPtr(windowHandle);
+        if (!IsWindow(handle))
+        {
+            return new WindowLayoutAdjustment(true, false, false, false, false, null, null, "Selected window is no longer valid.");
+        }
+
+        GetWindowRect(handle, out var beforeRect);
+        var beforeBounds = new WindowBounds(beforeRect.Left, beforeRect.Top, beforeRect.Right, beforeRect.Bottom);
+        var wasMaximized = IsZoomed(handle);
+        var wasMinimized = IsIconic(handle);
+
+        var restoreRequested = wasMaximized || wasMinimized;
+        if (restoreRequested)
+        {
+            ShowWindow(handle, ShowWindowCommand.Restore);
+        }
+
+        var restoredToNormal = !IsZoomed(handle) && !IsIconic(handle);
+        var resizeSucceeded = SetWindowPos(
+            handle,
+            IntPtr.Zero,
+            x,
+            y,
+            width,
+            height,
+            SetWindowPosFlags.NoZOrder | SetWindowPosFlags.NoActivate | SetWindowPosFlags.ShowWindow);
+
+        GetWindowRect(handle, out var afterRect);
+        var afterBounds = new WindowBounds(afterRect.Left, afterRect.Top, afterRect.Right, afterRect.Bottom);
+        var message = resizeSucceeded
+            ? "Window was restored to normal state when needed and resized before detail probing."
+            : "Window restore completed, but resizing failed.";
+
+        return new WindowLayoutAdjustment(
+            true,
+            wasMaximized,
+            wasMinimized,
+            restoredToNormal,
+            resizeSucceeded,
+            beforeBounds,
+            afterBounds,
+            message);
+    }
+
     public static IReadOnlyList<WindowElementSnapshot> GetTopLevelWindows(int processId)
     {
         var results = new List<WindowElementSnapshot>();
@@ -344,6 +497,19 @@ internal static class Win32WindowInspector
         NextSibling = 2,
     }
 
+    private enum ShowWindowCommand
+    {
+        Restore = 9,
+    }
+
+    [Flags]
+    private enum SetWindowPosFlags : uint
+    {
+        NoZOrder = 0x0004,
+        NoActivate = 0x0010,
+        ShowWindow = 0x0040,
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect
     {
@@ -361,6 +527,25 @@ internal static class Win32WindowInspector
 
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr handle, out Rect rect);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsZoomed(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr handle, ShowWindowCommand command);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr handle,
+        IntPtr insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        SetWindowPosFlags flags);
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetWindow(IntPtr handle, GetWindowCommand command);

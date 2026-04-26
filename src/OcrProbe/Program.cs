@@ -51,6 +51,11 @@ internal sealed record OcrProbeOptions(
     string CaptureImagePath,
     CaptureMode CaptureMode,
     string LanguageTag,
+    bool NormalizeWindowLayout,
+    int NormalWindowX,
+    int NormalWindowY,
+    int NormalWindowWidth,
+    int NormalWindowHeight,
     int RelativeX,
     int RelativeY,
     int RegionWidth,
@@ -94,6 +99,11 @@ internal sealed record OcrProbeOptions(
             Enum.TryParse<CaptureMode>(configuredCaptureMode, true, out var parsedCaptureMode)
             ? parsedCaptureMode
             : CaptureMode.Window;
+        var normalizeWindowLayout = ParseBool(values, "--normalize-window-layout", true);
+        var normalWindowX = ParseInt(values, "--normal-window-x", 120);
+        var normalWindowY = ParseInt(values, "--normal-window-y", 80);
+        var normalWindowWidth = ParsePositiveInt(values, "--normal-window-width", 1600);
+        var normalWindowHeight = ParsePositiveInt(values, "--normal-window-height", 900);
 
         return new OcrProbeOptions(
             Path.GetFullPath(processPath),
@@ -103,6 +113,11 @@ internal sealed record OcrProbeOptions(
             Path.GetFullPath(captureImagePath),
             captureMode,
             languageTag,
+            normalizeWindowLayout,
+            normalWindowX,
+            normalWindowY,
+            normalWindowWidth,
+            normalWindowHeight,
             ParseInt(values, "--relative-x", 120),
             ParseInt(values, "--relative-y", 220),
             ParseInt(values, "--width", 1200),
@@ -134,6 +149,32 @@ internal sealed record OcrProbeOptions(
             ? parsedValue
             : fallback;
     }
+
+    private static int ParsePositiveInt(IReadOnlyDictionary<string, string> values, string key, int fallback)
+    {
+        var value = ParseInt(values, key, fallback);
+        return value > 0 ? value : fallback;
+    }
+
+    private static bool ParseBool(IReadOnlyDictionary<string, string> values, string key, bool fallback)
+    {
+        if (!values.TryGetValue(key, out var configuredValue))
+        {
+            return fallback;
+        }
+
+        if (bool.TryParse(configuredValue, out var parsedBool))
+        {
+            return parsedBool;
+        }
+
+        if (int.TryParse(configuredValue, out var parsedInt))
+        {
+            return parsedInt != 0;
+        }
+
+        return fallback;
+    }
 }
 
 internal static class OcrReportBuilder
@@ -155,6 +196,16 @@ internal static class OcrReportBuilder
         }
 
         var selectedProcess = processCandidates[0];
+        var layoutAdjustment = options.NormalizeWindowLayout
+            ? Win32Capture.NormalizeToRestoredLayout(
+                selectedProcess.MainWindowHandle,
+                options.NormalWindowX,
+                options.NormalWindowY,
+                options.NormalWindowWidth,
+                options.NormalWindowHeight)
+            : WindowLayoutAdjustment.NotRequested();
+
+        selectedProcess = TryRefreshProcessSnapshot(selectedProcess.ProcessId) ?? selectedProcess;
         var captureCandidates = CaptureWindowSelector.GetOrderedCandidates(selectedProcess, options);
         if (captureCandidates.Count == 0)
         {
@@ -204,6 +255,9 @@ internal static class OcrReportBuilder
             var recognizedText = await RecognizeAsync(bitmap, options.LanguageTag);
             var customKeywordDetection = EvaluateCustomKeywords(options.Keywords, recognizedText.Normalized);
             var stateDetection = EvaluateStates(options.StateRules, recognizedText.Normalized);
+            var attemptResult = string.IsNullOrWhiteSpace(recognizedText.Normalized)
+                ? "抓图与 OCR 成功，但目标区域没有识别到文本。"
+                : "抓图与 OCR 成功。";
             var attempt = new OcrCaptureAttempt(
                 candidate,
                 captureRegion,
@@ -223,7 +277,7 @@ internal static class OcrReportBuilder
                 true,
                 recognizedText.Normalized.Length,
                 stateDetection.DetectedState,
-                "抓图与 OCR 成功。"));
+                attemptResult));
 
             if (bestAttempt is null || attempt.Score > bestAttempt.Score)
             {
@@ -241,7 +295,7 @@ internal static class OcrReportBuilder
             throw new InvalidOperationException("所有窗口候选的 OCR 抓图都失败了。请检查窗口是否已创建，或尝试切换 capture mode。");
         }
 
-        var jsonSummary = BuildJsonSummary(options, selectedProcess, bestAttempt, attemptSummaries);
+        var jsonSummary = BuildJsonSummary(options, selectedProcess, layoutAdjustment, bestAttempt, attemptSummaries);
         var markdown = BuildMarkdownReport(options, jsonSummary);
         return new OcrReport(
             options.OutputMarkdownPath,
@@ -250,6 +304,19 @@ internal static class OcrReportBuilder
             bestAttempt.CapturedBitmap,
             markdown,
             jsonSummary);
+    }
+
+    private static ProcessSnapshot? TryRefreshProcessSnapshot(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            return ProcessSnapshot.Create(process);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static CustomKeywordDetectionSummary EvaluateCustomKeywords(IReadOnlyList<string> keywords, string normalizedRecognizedText)
@@ -402,11 +469,12 @@ internal static class OcrReportBuilder
     private static OcrJsonSummary BuildJsonSummary(
         OcrProbeOptions options,
         ProcessSnapshot selectedProcess,
+        WindowLayoutAdjustment layoutAdjustment,
         OcrCaptureAttempt bestAttempt,
         IReadOnlyList<CaptureAttemptSummary> attemptSummaries)
     {
         return new OcrJsonSummary(
-            "1.0",
+            "1.1",
             DateTimeOffset.Now,
             options.ProcessPath,
             new ProcessSummary(
@@ -415,6 +483,7 @@ internal static class OcrReportBuilder
                 selectedProcess.ExecutablePath,
                 selectedProcess.MainWindowTitle,
                 ToHandleHex(selectedProcess.MainWindowHandle)),
+            layoutAdjustment,
             new CaptureWindowSummary(
                 bestAttempt.Candidate.HandleHex,
                 bestAttempt.Candidate.Title,
@@ -448,6 +517,26 @@ internal static class OcrReportBuilder
         builder.AppendLine($"- 目标主窗口标题: `{Escape(summary.Process.MainWindowTitle)}`");
         builder.AppendLine($"- OCR 语言: `{options.LanguageTag}`");
         builder.AppendLine($"- 抓图模式: `{summary.Capture.CaptureMode}`");
+        builder.AppendLine();
+        builder.AppendLine("## 预处理窗口布局");
+        builder.AppendLine();
+        builder.AppendLine($"- 已请求: `{summary.LayoutAdjustment.Requested}`");
+        builder.AppendLine($"- 目标普通窗体尺寸: `({options.NormalWindowX}, {options.NormalWindowY}) {options.NormalWindowWidth}x{options.NormalWindowHeight}`");
+        builder.AppendLine($"- 预处理前是否最大化: `{summary.LayoutAdjustment.WasMaximized}`");
+        builder.AppendLine($"- 预处理前是否最小化: `{summary.LayoutAdjustment.WasMinimized}`");
+        builder.AppendLine($"- 已恢复为普通窗体: `{summary.LayoutAdjustment.RestoredToNormal}`");
+        builder.AppendLine($"- 已应用目标尺寸: `{summary.LayoutAdjustment.ResizeSucceeded}`");
+        builder.AppendLine($"- 结果说明: `{Escape(summary.LayoutAdjustment.Message)}`");
+        if (summary.LayoutAdjustment.BoundsBefore is not null)
+        {
+            builder.AppendLine($"- 预处理前区域: `{FormatRect(summary.LayoutAdjustment.BoundsBefore)}`");
+        }
+
+        if (summary.LayoutAdjustment.BoundsAfter is not null)
+        {
+            builder.AppendLine($"- 预处理后区域: `{FormatRect(summary.LayoutAdjustment.BoundsAfter)}`");
+        }
+
         builder.AppendLine();
         builder.AppendLine("## 选中捕获窗口");
         builder.AppendLine();
@@ -574,6 +663,11 @@ internal static class CaptureWindowSelector
                 continue;
             }
 
+            if (IsIgnoredWindow(window))
+            {
+                continue;
+            }
+
             var fitsRequestedRegion = window.ClientBounds.Width >= options.RelativeX + options.RegionWidth &&
                 window.ClientBounds.Height >= options.RelativeY + options.RegionHeight;
             var scoreReasons = new List<string>();
@@ -675,10 +769,77 @@ internal static class CaptureWindowSelector
             seeds[handle] = new CandidateSeed(handle, sourceKind, sourceReason, baseScore);
         }
     }
+
+    private static bool IsIgnoredWindow(WindowInfo window)
+    {
+        if (window.ClassName.Contains("Electron_NotifyIconHostWindow", StringComparison.OrdinalIgnoreCase) ||
+            window.ClassName.Contains("Base_PowerMessageWindow", StringComparison.OrdinalIgnoreCase) ||
+            window.ClassName.Contains("Chrome_SystemMessageWindow", StringComparison.OrdinalIgnoreCase) ||
+            window.ClassName.Contains("MSCTFIME UI", StringComparison.OrdinalIgnoreCase) ||
+            window.ClassName.Equals("IME", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return window.Title.Contains("settingWindow", StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 internal static class Win32Capture
 {
+    public static WindowLayoutAdjustment NormalizeToRestoredLayout(long windowHandle, int x, int y, int width, int height)
+    {
+        if (windowHandle == 0)
+        {
+            return new WindowLayoutAdjustment(true, false, false, false, false, null, null, "主窗口句柄为空，无法预处理。");
+        }
+
+        var handle = new IntPtr(windowHandle);
+        if (!IsWindow(handle))
+        {
+            return new WindowLayoutAdjustment(true, false, false, false, false, null, null, "主窗口句柄无效，无法预处理。");
+        }
+
+        if (!GetWindowRect(handle, out var beforeRect))
+        {
+            return new WindowLayoutAdjustment(true, false, false, false, false, null, null, "读取预处理前窗口区域失败。");
+        }
+
+        var wasMaximized = IsZoomed(handle);
+        var wasMinimized = IsIconic(handle);
+        if (wasMaximized || wasMinimized)
+        {
+            ShowWindow(handle, ShowWindowCommand.Restore);
+        }
+
+        var restoredToNormal = !IsZoomed(handle) && !IsIconic(handle);
+        var resizeSucceeded = SetWindowPos(
+            handle,
+            IntPtr.Zero,
+            x,
+            y,
+            width,
+            height,
+            SetWindowPosFlags.NoZOrder | SetWindowPosFlags.NoActivate | SetWindowPosFlags.ShowWindow);
+
+        GetWindowRect(handle, out var afterRect);
+        var beforeBounds = new Int32Rect(beforeRect.Left, beforeRect.Top, beforeRect.Right - beforeRect.Left, beforeRect.Bottom - beforeRect.Top);
+        var afterBounds = new Int32Rect(afterRect.Left, afterRect.Top, afterRect.Right - afterRect.Left, afterRect.Bottom - afterRect.Top);
+        var message = resizeSucceeded
+            ? "OCR 前已尝试恢复普通窗体并调整到目标分辨率。"
+            : "窗口已恢复普通状态，但调整分辨率失败。";
+
+        return new WindowLayoutAdjustment(
+            true,
+            wasMaximized,
+            wasMinimized,
+            restoredToNormal,
+            resizeSucceeded,
+            beforeBounds,
+            afterBounds,
+            message);
+    }
+
     public static bool TryGetWindowInfo(long handleValue, out WindowInfo window)
     {
         window = default!;
@@ -893,6 +1054,19 @@ internal static class Win32Capture
         FirstChild = 5,
     }
 
+    private enum ShowWindowCommand
+    {
+        Restore = 9,
+    }
+
+    [Flags]
+    private enum SetWindowPosFlags : uint
+    {
+        NoZOrder = 0x0004,
+        NoActivate = 0x0010,
+        ShowWindow = 0x0040,
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct RectStruct
     {
@@ -917,6 +1091,25 @@ internal static class Win32Capture
 
     [DllImport("user32.dll")]
     private static extern bool GetWindowRect(IntPtr handle, out RectStruct rect);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindow(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsZoomed(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr handle, ShowWindowCommand command);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr handle,
+        IntPtr insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        SetWindowPosFlags flags);
 
     [DllImport("user32.dll")]
     private static extern bool GetClientRect(IntPtr handle, out RectStruct rect);
@@ -1036,12 +1229,38 @@ internal sealed record OcrJsonSummary(
     DateTimeOffset CapturedAt,
     string TargetProcessPath,
     ProcessSummary Process,
+    WindowLayoutAdjustment LayoutAdjustment,
     CaptureWindowSummary SelectedCaptureWindow,
     CaptureRegionSummary Capture,
     OcrTextSummary Text,
     CustomKeywordDetectionSummary CustomKeywordDetection,
     StateDetectionSummary StateDetection,
     IReadOnlyList<CaptureAttemptSummary> AttemptedWindows);
+
+internal sealed record WindowLayoutAdjustment(
+    bool Requested,
+    bool WasMaximized,
+    bool WasMinimized,
+    bool RestoredToNormal,
+    bool ResizeSucceeded,
+    Int32Rect? BoundsBefore,
+    Int32Rect? BoundsAfter,
+    string Message)
+{
+    public static WindowLayoutAdjustment NotRequested()
+    {
+        return new WindowLayoutAdjustment(
+            false,
+            false,
+            false,
+            false,
+            false,
+            null,
+            null,
+            "窗口预处理已关闭。"
+        );
+    }
+}
 
 internal sealed record ProcessSummary(
     int ProcessId,
