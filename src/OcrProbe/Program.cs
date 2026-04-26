@@ -41,6 +41,13 @@ Console.WriteLine($"匹配关键词: {(report.JsonSummary.CustomKeywordDetection
 Console.WriteLine($"任意关键词命中: {report.JsonSummary.CustomKeywordDetection.AnyMatched}");
 Console.WriteLine($"全部关键词命中: {report.JsonSummary.CustomKeywordDetection.AllMatched}");
 Console.WriteLine($"识别状态: {report.JsonSummary.StateDetection.DetectedState ?? "<none>"}");
+Console.WriteLine($"自动点击已请求: {report.JsonSummary.ClickAction.Requested}");
+Console.WriteLine($"自动点击已执行: {report.JsonSummary.ClickAction.Executed}");
+Console.WriteLine($"自动点击结果: {report.JsonSummary.ClickAction.Message}");
+if (report.JsonSummary.ClickAction.Executed)
+{
+    Console.WriteLine($"自动点击坐标: ({report.JsonSummary.ClickAction.ScreenX}, {report.JsonSummary.ClickAction.ScreenY})");
+}
 return 0;
 
 internal sealed record OcrProbeOptions(
@@ -64,6 +71,8 @@ internal sealed record OcrProbeOptions(
     int RegionWidth,
     int RegionHeight,
     IReadOnlyList<string> Keywords,
+    bool PerformClick,
+    int ClickDelayMs,
     IReadOnlyList<StateRule> StateRules)
 {
     public static OcrProbeOptions Parse(string[] args)
@@ -132,6 +141,8 @@ internal sealed record OcrProbeOptions(
             ParseInt(values, "--width", 1200),
             ParseInt(values, "--height", 700),
             ParseKeywords(values),
+            ParseBool(values, "--perform-click", false),
+            ParsePositiveInt(values, "--click-delay-ms", 80),
             CreateDefaultStateRules());
     }
 
@@ -556,8 +567,10 @@ internal static class OcrReportBuilder
         OcrCaptureAttempt bestAttempt,
         IReadOnlyList<CaptureAttemptSummary> attemptSummaries)
     {
+        var clickAction = OcrClickAction.TryClick(bestAttempt, options);
+
         return new OcrJsonSummary(
-            "1.2",
+            "1.3",
             DateTimeOffset.Now,
             options.ProcessPath,
             new ProcessSummary(
@@ -587,6 +600,7 @@ internal static class OcrReportBuilder
             bestAttempt.Text,
             bestAttempt.CustomKeywordDetection,
             bestAttempt.StateDetection,
+            clickAction,
             attemptSummaries);
     }
 
@@ -670,6 +684,14 @@ internal static class OcrReportBuilder
         {
             builder.AppendLine($"- `{state.Name}`: 命中=`{state.IsMatched}`，已满足=`{string.Join(", ", state.MatchedTerms)}`，缺失=`{string.Join(", ", state.MissingTerms)}`");
         }
+        builder.AppendLine();
+        builder.AppendLine("## 自动点击结果");
+        builder.AppendLine();
+        builder.AppendLine($"- 已请求自动点击: `{summary.ClickAction.Requested}`");
+        builder.AppendLine($"- 已执行自动点击: `{summary.ClickAction.Executed}`");
+        builder.AppendLine($"- 点击来源关键词: `{summary.ClickAction.Keyword ?? "<none>"}`");
+        builder.AppendLine($"- 点击坐标: `{(summary.ClickAction.ScreenX.HasValue ? $"{summary.ClickAction.ScreenX},{summary.ClickAction.ScreenY}" : "<none>")}`");
+        builder.AppendLine($"- 结果说明: `{Escape(summary.ClickAction.Message)}`");
         builder.AppendLine();
         builder.AppendLine("## OCR 行明细");
         builder.AppendLine();
@@ -1413,7 +1435,16 @@ internal sealed record OcrJsonSummary(
     OcrTextSummary Text,
     CustomKeywordDetectionSummary CustomKeywordDetection,
     StateDetectionSummary StateDetection,
+    ClickActionSummary ClickAction,
     IReadOnlyList<CaptureAttemptSummary> AttemptedWindows);
+
+internal sealed record ClickActionSummary(
+    bool Requested,
+    bool Executed,
+    string? Keyword,
+    int? ScreenX,
+    int? ScreenY,
+    string Message);
 
 internal sealed record WindowLayoutAdjustment(
     bool Requested,
@@ -1529,3 +1560,140 @@ internal sealed record WindowInfo(
     Int32Rect ClientBounds);
 
 internal sealed record CaptureRegion(Int32Rect AbsoluteBounds, Int32Rect RelativeBounds, string Strategy);
+
+internal static class OcrClickAction
+{
+    public static ClickActionSummary TryClick(OcrCaptureAttempt attempt, OcrProbeOptions options)
+    {
+        if (!options.PerformClick)
+        {
+            return new ClickActionSummary(false, false, null, null, null, "未请求自动点击（--perform-click=false）。");
+        }
+
+        var configuredKeywords = options.Keywords
+            .Where(keyword => !string.IsNullOrWhiteSpace(keyword))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (configuredKeywords.Count == 0)
+        {
+            return new ClickActionSummary(true, false, null, null, null, "未配置关键词，无法定位点击目标。");
+        }
+
+        var matchedLine = FindMatchedLine(attempt.Text.Lines, configuredKeywords);
+        if (matchedLine.Line is null)
+        {
+            return new ClickActionSummary(true, false, null, null, null, "OCR 行文本未命中任何点击关键词。");
+        }
+
+        var lineBounds = matchedLine.Line.Bounds;
+        var screenX = attempt.CaptureRegion.AbsoluteBounds.X + (int)lineBounds.X + (int)(lineBounds.Width / 2);
+        var screenY = attempt.CaptureRegion.AbsoluteBounds.Y + (int)lineBounds.Y + (int)(lineBounds.Height / 2);
+        if (!SetCursorPos(screenX, screenY))
+        {
+            return new ClickActionSummary(true, false, matchedLine.Keyword, screenX, screenY, "SetCursorPos 调用失败。");
+        }
+
+        Thread.Sleep(Math.Max(0, options.ClickDelayMs));
+        if (!TrySendLeftClick())
+        {
+            return new ClickActionSummary(true, false, matchedLine.Keyword, screenX, screenY, "SendInput 单击调用失败。");
+        }
+
+        return new ClickActionSummary(true, true, matchedLine.Keyword, screenX, screenY, "已按 OCR 关键词位置执行单击。");
+    }
+
+    private static (OcrLineSnapshot? Line, string? Keyword) FindMatchedLine(
+        IReadOnlyList<OcrLineSnapshot> lines,
+        IReadOnlyList<string> configuredKeywords)
+    {
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line.Text))
+            {
+                continue;
+            }
+
+            foreach (var keyword in configuredKeywords)
+            {
+                if (line.Text.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (line, keyword);
+                }
+            }
+        }
+
+        return (null, null);
+    }
+
+    private static bool TrySendLeftClick()
+    {
+        var inputs = new[]
+        {
+            CreateMouseInput(MouseEventFlags.LeftDown),
+            CreateMouseInput(MouseEventFlags.LeftUp),
+        };
+
+        var sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        return sent == inputs.Length;
+    }
+
+    private static INPUT CreateMouseInput(MouseEventFlags flags)
+    {
+        return new INPUT
+        {
+            type = InputTypeMouse,
+            U = new InputUnion
+            {
+                mi = new MOUSEINPUT
+                {
+                    dx = 0,
+                    dy = 0,
+                    mouseData = 0,
+                    dwFlags = (uint)flags,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero,
+                },
+            },
+        };
+    }
+
+    private const int InputTypeMouse = 0;
+
+    [Flags]
+    private enum MouseEventFlags : uint
+    {
+        LeftDown = 0x0002,
+        LeftUp = 0x0004,
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct INPUT
+    {
+        public int type;
+        public InputUnion U;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    private struct InputUnion
+    {
+        [FieldOffset(0)]
+        public MOUSEINPUT mi;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetCursorPos(int x, int y);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint SendInput(uint numberOfInputs, INPUT[] inputs, int sizeOfInputStructure);
+}
