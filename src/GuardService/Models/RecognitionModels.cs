@@ -14,6 +14,22 @@ public enum SessionState
     DesktopReady,
 }
 
+public enum CycleActionType
+{
+    StartProcess,
+    LoginClick,
+    KillProcess,
+    Skip,
+}
+
+public sealed record CycleAction(
+    DateTimeOffset ObservedAt,
+    CycleActionType Type,
+    bool Succeeded,
+    string Message,
+    string? Method = null,
+    string? Details = null);
+
 public sealed record ProcessCandidate(
     int ProcessId,
     string? ExecutablePath,
@@ -102,14 +118,23 @@ public sealed record GuardCycleResult(
     DateTimeOffset ObservedAt,
     ProcessSnapshot Process,
     WindowSnapshot Window,
-    SessionState SessionState)
+    SessionState SessionState,
+    IReadOnlyList<CycleAction> Actions,
+    int? TestLoopsCompleted,
+    int? TestLoopsTarget)
 {
     public string ToSummary()
     {
         var pid = Process.ProcessId?.ToString() ?? "n/a";
         var hwnd = Window.HandleHex ?? "n/a";
         var title = string.IsNullOrWhiteSpace(Window.Title) ? "n/a" : Window.Title;
+        var actionSummary = Actions.Count == 0
+            ? "none"
+            : string.Join(",", Actions.Select(action => $"{action.Type}:{(action.Succeeded ? "ok" : "fail")}"));
+        var testSummary = TestLoopsTarget.HasValue
+            ? $"{TestLoopsCompleted ?? 0}/{TestLoopsTarget.Value}"
+            : "off";
 
-        return $"state={SessionState}; process={Process.State}; pid={pid}; hwnd={hwnd}; title={title}";
+        return $"state={SessionState}; process={Process.State}; pid={pid}; hwnd={hwnd}; title={title}; actions={actionSummary}; testLoops={testSummary}";
     }
 }

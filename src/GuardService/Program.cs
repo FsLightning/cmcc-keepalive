@@ -1,4 +1,5 @@
 using GuardService;
+using GuardService.Automation;
 using GuardService.Configuration;
 using GuardService.Monitoring;
 
@@ -22,6 +23,8 @@ builder.Services
 builder.Services.AddSingleton<ProcessMonitor>();
 builder.Services.AddSingleton<WindowProbe>();
 builder.Services.AddSingleton<SessionClassifier>();
+builder.Services.AddSingleton<ProcessController>();
+builder.Services.AddSingleton<LoginAssist>();
 builder.Services.AddHostedService<Worker>();
 
 var host = builder.Build();
