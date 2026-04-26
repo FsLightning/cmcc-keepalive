@@ -41,6 +41,8 @@ dotnet run --project .\src\GuardService\GuardService.csproj
 dotnet run --project .\src\WindowInspector\WindowInspector.csproj
 ```
 
+WindowInspector 默认会在导出详细窗口信息前先预处理主窗体：若窗口处于最大化或最小化状态，会先恢复为普通窗体，并尝试调整到 `(120, 80) 1600x900`。可通过 `--normalize-window-layout`、`--normal-window-x`、`--normal-window-y`、`--normal-window-width`、`--normal-window-height` 覆盖默认值。
+
 ```powershell
 dotnet run --project .\src\OcrProbe\OcrProbe.csproj
 ```
@@ -50,6 +52,8 @@ dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --keywords Windows,运行
 ```
 
 OcrProbe 当前会在只读前提下输出三态页面识别结果：`Windows 已关机`、`Windows 关机中`、`Windows 运行中`。
+
+OcrProbe 同样默认在 OCR 前执行窗口预处理（恢复普通窗体并调整到目标尺寸），以降低窗口状态波动对识别结果的影响。详细参数说明见 `docs/ocr-probe.md`。
 
 ## 当前默认配置
 
