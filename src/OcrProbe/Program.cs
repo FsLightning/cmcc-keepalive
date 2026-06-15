@@ -4,6 +4,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Windows.Forms;
 using Windows.Globalization;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
@@ -15,40 +16,61 @@ if (!OperatingSystem.IsWindows())
     return 1;
 }
 
-var options = OcrProbeOptions.Parse(args);
-var report = await OcrReportBuilder.BuildAsync(options);
-Directory.CreateDirectory(Path.GetDirectoryName(report.OutputMarkdownPath)!);
-Directory.CreateDirectory(Path.GetDirectoryName(report.OutputJsonPath)!);
-Directory.CreateDirectory(Path.GetDirectoryName(report.CaptureImagePath)!);
-await File.WriteAllTextAsync(report.OutputMarkdownPath, report.Markdown, new UTF8Encoding(false));
-await File.WriteAllTextAsync(
-    report.OutputJsonPath,
-    JsonSerializer.Serialize(
-        report.JsonSummary,
-        new JsonSerializerOptions(JsonSerializerDefaults.Web)
-        {
-            WriteIndented = true,
-        }),
-    new UTF8Encoding(false));
-report.CapturedBitmap.Save(report.CaptureImagePath, ImageFormat.Png);
+var launchUi = UiModeArgumentParser.ShouldLaunchUi(args);
+var normalizedArgs = UiModeArgumentParser.RemoveUiArguments(args);
 
-Console.WriteLine($"OCR Markdown 报告已写入: {report.OutputMarkdownPath}");
-Console.WriteLine($"OCR JSON 结果已写入: {report.OutputJsonPath}");
-Console.WriteLine($"截图文件已写入: {report.CaptureImagePath}");
-Console.WriteLine($"选中进程: PID={report.Process.ProcessId}, MainWindowTitle={report.Process.MainWindowTitle}");
-Console.WriteLine($"OCR 文本: {report.JsonSummary.Text.Original.Replace(Environment.NewLine, " ")}");
-Console.WriteLine($"匹配关键词: {(report.JsonSummary.CustomKeywordDetection.MatchedKeywords.Count == 0 ? "<none>" : string.Join(", ", report.JsonSummary.CustomKeywordDetection.MatchedKeywords))}");
-Console.WriteLine($"任意关键词命中: {report.JsonSummary.CustomKeywordDetection.AnyMatched}");
-Console.WriteLine($"全部关键词命中: {report.JsonSummary.CustomKeywordDetection.AllMatched}");
-Console.WriteLine($"识别状态: {report.JsonSummary.StateDetection.DetectedState ?? "<none>"}");
-Console.WriteLine($"自动点击已请求: {report.JsonSummary.ClickAction.Requested}");
-Console.WriteLine($"自动点击已执行: {report.JsonSummary.ClickAction.Executed}");
-Console.WriteLine($"自动点击结果: {report.JsonSummary.ClickAction.Message}");
-if (report.JsonSummary.ClickAction.Executed)
+if (launchUi)
 {
-    Console.WriteLine($"自动点击坐标: ({report.JsonSummary.ClickAction.ScreenX}, {report.JsonSummary.ClickAction.ScreenY})");
+    Exception? uiException = null;
+    var uiThread = new Thread(() =>
+    {
+        try
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new OcrProbeMainForm(normalizedArgs));
+        }
+        catch (Exception exception)
+        {
+            uiException = exception;
+        }
+    });
+
+    uiThread.SetApartmentState(ApartmentState.STA);
+    uiThread.Start();
+    uiThread.Join();
+    if (uiException is not null)
+    {
+        throw uiException;
+    }
+
+    return 0;
 }
+
+var options = OcrProbeOptions.Parse(normalizedArgs);
+var report = await OcrProbeExecution.RunAndPersistAsync(options);
+WriteConsoleSummary(report);
 return 0;
+
+static void WriteConsoleSummary(OcrReport report)
+{
+    Console.WriteLine($"OCR Markdown 报告已写入: {report.OutputMarkdownPath}");
+    Console.WriteLine($"OCR JSON 结果已写入: {report.OutputJsonPath}");
+    Console.WriteLine($"截图文件已写入: {report.CaptureImagePath}");
+    Console.WriteLine($"选中进程: PID={report.Process.ProcessId}, MainWindowTitle={report.Process.MainWindowTitle}");
+    Console.WriteLine($"OCR 文本: {report.JsonSummary.Text.Original.Replace(Environment.NewLine, " ")}");
+    Console.WriteLine($"匹配关键词: {(report.JsonSummary.CustomKeywordDetection.MatchedKeywords.Count == 0 ? "<none>" : string.Join(", ", report.JsonSummary.CustomKeywordDetection.MatchedKeywords))}");
+    Console.WriteLine($"任意关键词命中: {report.JsonSummary.CustomKeywordDetection.AnyMatched}");
+    Console.WriteLine($"全部关键词命中: {report.JsonSummary.CustomKeywordDetection.AllMatched}");
+    Console.WriteLine($"识别状态: {report.JsonSummary.StateDetection.DetectedState ?? "<none>"}");
+    Console.WriteLine($"自动点击已请求: {report.JsonSummary.ClickAction.Requested}");
+    Console.WriteLine($"自动点击已执行: {report.JsonSummary.ClickAction.Executed}");
+    Console.WriteLine($"自动点击结果: {report.JsonSummary.ClickAction.Message}");
+    if (report.JsonSummary.ClickAction.Executed)
+    {
+        Console.WriteLine($"自动点击坐标: ({report.JsonSummary.ClickAction.ScreenX}, {report.JsonSummary.ClickAction.ScreenY})");
+    }
+}
 
 internal sealed record OcrProbeOptions(
     string ProcessPath,
@@ -91,7 +113,7 @@ internal sealed record OcrProbeOptions(
 
         var processPath = values.TryGetValue("--process-path", out var configuredPath)
             ? configuredPath
-            : @"C:\Program Files (x86)\Ecloud\CloudComputer\Ecloud Cloud Computer Application.exe";
+            : ResolveDefaultProcessPath();
         var processName = values.TryGetValue("--process-name", out var configuredName)
             ? configuredName
             : Path.GetFileNameWithoutExtension(processPath);
@@ -153,6 +175,25 @@ internal sealed record OcrProbeOptions(
             : [];
     }
 
+    private static string ResolveDefaultProcessPath()
+    {
+        var candidates = new[]
+        {
+            @"C:\Program Files (x86)\Ecloud\CloudComputer\Ecloud Cloud Computer Application.exe",
+            @"C:\Program Files\Ecloud\CloudComputer\Ecloud Cloud Computer Application.exe",
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return candidates[0];
+    }
+
     private static IReadOnlyList<StateRule> CreateDefaultStateRules()
     {
         return
@@ -189,6 +230,88 @@ internal sealed record OcrProbeOptions(
         }
 
         if (int.TryParse(configuredValue, out var parsedInt))
+        {
+            return parsedInt != 0;
+        }
+
+        return fallback;
+    }
+}
+
+internal static class OcrProbeExecution
+{
+    public static async Task<OcrReport> RunAndPersistAsync(OcrProbeOptions options)
+    {
+        var report = await OcrReportBuilder.BuildAsync(options);
+        Directory.CreateDirectory(Path.GetDirectoryName(report.OutputMarkdownPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(report.OutputJsonPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(report.CaptureImagePath)!);
+        await File.WriteAllTextAsync(report.OutputMarkdownPath, report.Markdown, new UTF8Encoding(false));
+        await File.WriteAllTextAsync(
+            report.OutputJsonPath,
+            JsonSerializer.Serialize(
+                report.JsonSummary,
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                {
+                    WriteIndented = true,
+                }),
+            new UTF8Encoding(false));
+        report.CapturedBitmap.Save(report.CaptureImagePath, ImageFormat.Png);
+        return report;
+    }
+}
+
+internal static class UiModeArgumentParser
+{
+    public static bool ShouldLaunchUi(IReadOnlyList<string> args)
+    {
+        for (var index = 0; index < args.Count; index++)
+        {
+            if (!string.Equals(args[index], "--ui", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (index + 1 < args.Count && !args[index + 1].StartsWith("--", StringComparison.Ordinal))
+            {
+                return ParseBool(args[index + 1], fallback: true);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public static string[] RemoveUiArguments(IReadOnlyList<string> args)
+    {
+        var filtered = new List<string>(args.Count);
+        for (var index = 0; index < args.Count; index++)
+        {
+            if (string.Equals(args[index], "--ui", StringComparison.OrdinalIgnoreCase))
+            {
+                if (index + 1 < args.Count && !args[index + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    index++;
+                }
+
+                continue;
+            }
+
+            filtered.Add(args[index]);
+        }
+
+        return filtered.ToArray();
+    }
+
+    private static bool ParseBool(string value, bool fallback)
+    {
+        if (bool.TryParse(value, out var parsedBool))
+        {
+            return parsedBool;
+        }
+
+        if (int.TryParse(value, out var parsedInt))
         {
             return parsedInt != 0;
         }
@@ -270,7 +393,8 @@ internal static class OcrReportBuilder
             throw new InvalidOperationException("所有窗口候选的 OCR 抓图都失败了。请检查窗口是否已创建，或尝试切换 capture mode。");
         }
 
-        var jsonSummary = BuildJsonSummary(options, selectedProcess, layoutAdjustment, bestAttempt, attemptSummaries);
+        var clickAction = OcrClickAction.TryClick(bestAttempt, options);
+        var jsonSummary = BuildJsonSummary(options, selectedProcess, layoutAdjustment, bestAttempt, clickAction, attemptSummaries);
         var markdown = BuildMarkdownReport(options, jsonSummary);
         return new OcrReport(
             options.OutputMarkdownPath,
@@ -565,10 +689,9 @@ internal static class OcrReportBuilder
         ProcessSnapshot selectedProcess,
         WindowLayoutAdjustment layoutAdjustment,
         OcrCaptureAttempt bestAttempt,
+        ClickActionSummary clickAction,
         IReadOnlyList<CaptureAttemptSummary> attemptSummaries)
     {
-        var clickAction = OcrClickAction.TryClick(bestAttempt, options);
-
         return new OcrJsonSummary(
             "1.3",
             DateTimeOffset.Now,

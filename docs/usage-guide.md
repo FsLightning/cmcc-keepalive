@@ -32,6 +32,14 @@ dotnet run --project .\src\WindowInspector\WindowInspector.csproj
 dotnet run --project .\src\OcrProbe\OcrProbe.csproj
 ```
 
+### 5. 运行 OcrProbe 简易 UI
+
+```powershell
+dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --ui true
+```
+
+UI 支持直接配置进程路径、关键词、抓图模式、点击开关并执行；执行完成后可一键打开 Markdown/JSON/截图输出。
+
 ## GuardService 配置
 
 配置文件：`src/GuardService/appsettings.json` 的 `Guard` 节。

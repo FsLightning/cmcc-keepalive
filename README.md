@@ -60,6 +60,10 @@ dotnet run --project .\src\OcrProbe\OcrProbe.csproj
 dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --keywords Windows,运行中
 ```
 
+```powershell
+dotnet run --project .\src\OcrProbe\OcrProbe.csproj -- --ui true
+```
+
 OcrProbe 当前会在只读前提下输出三态页面识别结果：`Windows 已关机`、`Windows 关机中`、`Windows 运行中`。
 
 OcrProbe 默认不强制改变窗口状态，而是优先通过自适应区域策略在当前窗口状态下完成识别；当首轮结果为空文本且未命中状态时，会自动触发一次“窗口预处理 + 重试”。如需始终固定窗口尺寸再识别，也可显式开启 `--normalize-window-layout true`。详细参数说明见 `docs/ocr-probe.md`。

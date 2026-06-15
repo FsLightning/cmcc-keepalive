@@ -1,0 +1,21 @@
+{
+    "$schema": "http://json.schemastore.org/launchsettings.json",
+    "profiles": {
+        "OcrProbe CLI": {
+            "commandName": "Project",
+            "commandLineArgs": "--perform-click false",
+            "workingDirectory": "$(ProjectDir)",
+            "environmentVariables": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        },
+        "OcrProbe UI": {
+            "commandName": "Project",
+            "commandLineArgs": "--ui true --auto-start-ccapp true --startup-wait-seconds 12 --post-start-delay-seconds 5 --post-enter-delay-seconds 3",
+            "workingDirectory": "$(ProjectDir)",
+            "environmentVariables": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        }
+    }
+}
